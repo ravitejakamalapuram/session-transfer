@@ -1,0 +1,117 @@
+# Chrome Web Store — Submission Playbook
+
+Everything below is ready to paste. Estimated total time: **~30–45 minutes** (plus Google's
+review, typically 1–3 days for a new extension with host permissions).
+
+---
+
+## STEP 0 — One manual smoke test (5 min, strongly recommended)
+
+Reviewers will install and run the extension, so do this first:
+
+1. Unzip `session-transfer-v1.2.0.zip` → `chrome://extensions` → Developer mode → **Load unpacked**.
+2. Log into any site (e.g. GitHub) in the tab → click extension → **Transfer Session** → download package + note code.
+3. Open a second Chrome profile with the extension → **Receive Session** → load package + code → **Import Session** → confirm you're logged in and the verification report passes.
+
+---
+
+## STEP 1 — Developer account (5 min, one-time)
+
+1. Go to <https://chrome.google.com/webstore/devconsole>.
+2. Sign in with a Google account and pay the **one-time $5** registration fee.
+3. (Recommended) Add a publisher website/contact email in **Account** settings.
+
+## STEP 2 — Create the item & upload
+
+1. Developer Dashboard → **New Item** → upload **`session-transfer-v1.2.0.zip`** (built, in `extension/` root or download from the demo page).
+2. Version shows 1.2.0 automatically from the manifest.
+
+## STEP 3 — Store listing tab (copy-paste ready)
+
+**Name:** Session Transfer
+
+**Summary (short description, ≤132 chars):**
+> Move logged-in browser sessions between Chrome profiles or devices. AES-256-GCM encrypted, fully local, one-time code. No cloud.
+
+**Description (detailed):**
+> Session Transfer moves an authenticated website session from one Chrome browser, profile, or computer to another in a couple of clicks — no re-login, no MFA loop.
+>
+> HOW IT WORKS
+> 1. On the source browser, open the site, click the extension and press "Transfer Session".
+> 2. The extension captures cookies (including HttpOnly), localStorage, sessionStorage, IndexedDB and Cache Storage, then encrypts everything with AES-256-GCM using a one-time transfer code.
+> 3. On the destination browser, press "Receive Session", load the encrypted package and enter the code. State is restored, the page reloads, and a verification report confirms the result.
+>
+> SECURITY & PRIVACY BY DESIGN
+> • 100% local — no servers, no accounts, no analytics, no tracking.
+> • AES-256-GCM with an ephemeral key derived via PBKDF2-SHA256 (210,000 iterations).
+> • One-time codes; packages expire after 5 minutes.
+> • Strict origin isolation — a package can only ever be restored into its own website origin.
+> • Existing destination sessions are never silently overwritten: choose Replace, Merge or Cancel, with an optional encrypted, auto-expiring backup.
+> • Honest about limits: WebAuthn/passkeys, hardware credentials and TLS-bound state cannot be transferred by any extension, and we say so in-product instead of faking success.
+>
+> IDEAL FOR
+> • Developers moving authenticated sessions between dev/staging/prod profiles.
+> • Switching computers or browsers without logging in again.
+> • QA teams reproducing authenticated states quickly.
+>
+> Full capability table and threat model are linked from the website.
+
+**Category:** Productivity
+**Language:** English
+
+**Screenshots (1280×800)** — upload in this order, from `extension/store-assets/`:
+1. `screenshot-home.png` — "Session detected — one click to export"
+2. `screenshot-transfer.png` — "Encrypted, one-time code, 5-minute expiry"
+3. `screenshot-receive.png` — "Paste the code, we do the rest"
+4. `screenshot-restored.png` — "Logged in & verified"
+
+**Small promo tile (440×280):** `store-assets/tile-small-440x280.png`
+**Marquee (1400×560, optional):** `store-assets/tile-marquee-1400x560.png`
+
+**Store icon:** `icons/icon128.png` (also inside the zip)
+
+**Official URL / Homepage:** `https://session-bridge-4.preview.emergentagent.com`
+**Privacy policy URL (required):** `https://session-bridge-4.preview.emergentagent.com/privacy`
+**Support site:** same homepage URL (or a GitHub repo URL if you have one)
+
+## STEP 4 — Privacy practices tab (important — answer exactly like this)
+
+**Single purpose description:**
+> Session Transfer securely exports and imports a website's authenticated browser state (cookies and origin storage) between Chrome browsers/profiles/devices, using client-side encryption.
+
+**Permission justifications:**
+- **cookies** — "Reading and restoring cookies (including HttpOnly/Secure) is the core mechanism for transferring authenticated sessions. Cookies are only accessed for the origin the user explicitly selects."
+- **scripting** — "Used to run a one-time, user-initiated collect/restore function in the active tab to read/write that origin's localStorage, sessionStorage, IndexedDB and Cache Storage. No code runs automatically on page load."
+- **tabs** — "Used to identify the active tab's origin for collection and to open/reload the destination tab during restore."
+- **storage** — "Stores encrypted, auto-expiring (30 min) local backups of destination state before an optional overwrite. Never synced, never transmitted."
+- **host_permissions (http/https)** — "The product's purpose is transferring sessions for any website the user is logged into, so a fixed host list is impossible. Access is on-demand (user clicks the toolbar action), strictly limited to the selected origin, and cross-origin mixing is cryptographically prevented (origin bound as AEAD authenticated data)."
+
+**Remote code:** "No — this extension does not use remote code."
+
+**Data usage disclosures:**
+- "Does NOT collect or transmit user data."
+- If any checkbox insists on data handling: all processing is local; "not used or transferred for purposes unrelated to the item's single purpose"; "not sold"; "not used for creditworthiness or lending".
+- Certify the compliance checkbox and save.
+
+## STEP 5 — Submit for review
+
+1. Fix any red validation errors shown at the top of the dashboard.
+2. Set visibility: **Public** (or Unlisted if you want a link-only launch first — fastest way to "publish" safely).
+3. **Submit for review.**
+
+## Fastest-path tips
+
+- **Unlisted visibility** publishes instantly after review without appearing in search — good for a soft launch; flip to Public later.
+- Review for extensions with broad host permissions takes 1–3 days (occasionally up to a week). Everything in Step 4 above is written to preempt the usual rejection reasons.
+- Keep the zip you submitted; for updates, bump `version` in `extension/package.json`, run `yarn zip`, and upload the new zip — existing users auto-update.
+- If rejected, the dashboard states the exact policy section; the most common fix for this type of extension is expanding the host-permission justification (already drafted above).
+
+## Files you'll need (all in this repo)
+
+| Store field | File |
+|---|---|
+| Extension package | `session-transfer-v1.2.0.zip` |
+| Screenshots ×4 | `store-assets/screenshot-{home,transfer,receive,restored}.png` |
+| Small promo tile | `store-assets/tile-small-440x280.png` |
+| Marquee tile | `store-assets/tile-marquee-1400x560.png` |
+| Privacy policy | https://session-bridge-4.preview.emergentagent.com/privacy |

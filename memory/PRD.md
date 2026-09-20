@@ -43,6 +43,11 @@ about non-transferable state (WebAuthn/passkeys, hardware creds, TLS).
 - Popup UI with progress, details, unsupported-state disclosure. data-testids throughout.
 - Extension builds (`yarn build`) and packs (`yarn zip` → ~80 KB zip).
 - Hosted landing/demo page with working AES-GCM simulator + zip download.
+- **Chrome Web Store prep (done)**: 4 store screenshots (1280×800), small promo tile
+  (440×280) + marquee (1400×560) in `extension/store-assets/` (rendered via local headless
+  Chrome from faithful popup UI replicas); hosted **Privacy Policy** page at `/privacy`;
+  complete submission playbook with all copy + permission justifications in
+  `extension/store-listing.md`. Checklist updated in `CHROME_WEB_STORE_CHECKLIST.md`.
 
 ## Backlog (P1/P2)
 - P1: `test-app/` fixture site (Set Cookie/LS/SS/IDB/Cache) + Playwright E2E across apps.

@@ -20,17 +20,19 @@
 
 ## Listing assets
 - [x] Icons: 16 / 32 / 48 / 128 px (`icons/`).
-- [ ] Screenshots (1280×800 or 640×400): home, transfer-ready, receive, verification.
-- [ ] Small promo tile (440×280) and marquee (optional).
-- [ ] Short description (≤132 chars) + detailed description (from README).
+- [x] Screenshots (1280×800): `store-assets/screenshot-{home,transfer,receive,restored}.png`.
+- [x] Small promo tile (440×280) and marquee (1400×560): `store-assets/tile-small-440x280.png`, `store-assets/tile-marquee-1400x560.png`.
+- [x] Short description + detailed description: ready in `store-listing.md`.
 
 ## Quality / policy
 - [x] Single clear purpose (session transfer) — no unrelated functionality.
 - [x] No misleading claims; non-transferable state disclosed in-product and in docs.
 - [x] Sensitive values never logged, displayed, or transmitted.
-- [ ] Test on a fresh profile: install from zip, run a full transfer, confirm verification.
+- [x] Privacy policy hosted at /privacy (required URL for the listing).
+- [ ] One manual smoke test on a fresh profile (Step 0 in `store-listing.md`).
 - [ ] Version bump in `package.json` (drives manifest version + zip name).
 
 ## Submission
-- [ ] Register/verify a Chrome Web Store developer account (one-time fee).
-- [ ] Upload the zip, fill listing, set visibility, submit for review.
+- [x] Full step-by-step playbook + all copy: `store-listing.md`.
+- [ ] Register/verify a Chrome Web Store developer account (one-time $5 fee).
+- [ ] Upload the zip, paste listing, set visibility, submit for review.

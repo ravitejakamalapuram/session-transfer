@@ -415,8 +415,9 @@ function Footer({ onDownload }) {
             <img src="/logo.png" className="w-7 h-7 rounded-lg" alt="" />
             <span className="st-mono text-[13px] font-bold">Session Transfer</span>
           </div>
-          <div className="st-mono text-[11px] flex items-center gap-2" style={{ color: "var(--text-3)" }}>
-            <Lock size={12} style={{ color: "var(--accent)" }} /> Encrypted · Local only · No server · {VERSION}
+          <div className="st-mono text-[11px] flex items-center gap-4" style={{ color: "var(--text-3)" }}>
+            <a href="/privacy" className="st-link !text-[11px]" data-testid="footer-privacy-link">Privacy Policy</a>
+            <span className="flex items-center gap-2"><Lock size={12} style={{ color: "var(--accent)" }} /> Encrypted · Local only · No server · {VERSION}</span>
           </div>
         </div>
       </div>
