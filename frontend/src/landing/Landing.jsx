@@ -72,17 +72,17 @@ function Nav({ scrolled, onDownload }) {
       data-testid="site-header"
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2.5 flex-shrink-0">
           <img src="/logo.png" alt="Session Transfer" className="w-8 h-8 rounded-lg" />
           <span className="st-mono font-extrabold text-[15px]">Session Transfer</span>
-          <span className="st-badge hidden sm:inline-flex ml-1 !py-0.5 !px-2.5 !text-[10px]">MV3</span>
+          <span className="st-badge hidden xl:inline-flex ml-1 !py-0.5 !px-2.5 !text-[10px]">MV3</span>
         </div>
-        <nav className="hidden lg:flex items-center gap-6">
+        <nav className="hidden lg:flex items-center gap-4 xl:gap-6">
           {NAV.map(([label, id]) => (
             <button key={id} className="st-link" onClick={() => scrollTo(id)} data-testid={`nav-link-${id}`}>{label}</button>
           ))}
         </nav>
-        <button className="st-btn st-btn-primary !py-2.5 !px-4 !text-[13px]" onClick={onDownload} data-testid="nav-cta-download-button">
+        <button className="st-btn st-btn-primary !py-2.5 !px-4 !text-[13px] hidden lg:inline-flex flex-shrink-0" onClick={onDownload} data-testid="nav-cta-download-button">
           <Download size={15} /> Download {VERSION}
         </button>
       </div>
