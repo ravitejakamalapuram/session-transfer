@@ -1,0 +1,28 @@
+{
+  "name": "session-transfer",
+  "version": "1.2.0",
+  "description": "Securely transfer authenticated browser session state (cookies, localStorage, sessionStorage, IndexedDB, Cache Storage) between Chrome profiles/devices. AES-256-GCM encrypted, fully local, no server.",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "build:nocheck": "vite build",
+    "zip": "vite build && node scripts/zip.mjs",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@crxjs/vite-plugin": "^2.0.0",
+    "@types/chrome": "^0.0.270",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "archiver": "^7.0.1",
+    "typescript": "^5.6.3",
+    "vite": "^6.0.7"
+  }
+}

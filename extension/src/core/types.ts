@@ -1,0 +1,181 @@
+// Shared domain types for the Session Transfer extension.
+
+export const PACKAGE_FORMAT = 'browser-session-transfer' as const;
+export const PACKAGE_VERSION = 1 as const;
+
+/** Per-storage-mechanism outcome. Never contains secret values. */
+export type TransferStatus = 'success' | 'partial' | 'failed' | 'unsupported' | 'pending' | 'running';
+
+export type TransferComponent =
+  | 'cookies'
+  | 'localStorage'
+  | 'sessionStorage'
+  | 'indexedDB'
+  | 'cacheStorage';
+
+export interface TransferComponentResult {
+  component: TransferComponent;
+  status: TransferStatus;
+  itemCount?: number;
+  /** Non-sensitive, human readable note (never a stored value). */
+  error?: string;
+}
+
+/** A single cookie captured for an origin. */
+export interface CapturedCookie {
+  name: string;
+  value: string;
+  domain: string;
+  path: string;
+  secure: boolean;
+  httpOnly: boolean;
+  sameSite: chrome.cookies.SameSiteStatus;
+  expirationDate?: number;
+  hostOnly: boolean;
+  session: boolean;
+  storeId?: string;
+}
+
+/** A recursively-tagged, structured-clone-aware serialized value node. */
+export interface SNode {
+  t:
+    | 'prim'
+    | 'null'
+    | 'undef'
+    | 'date'
+    | 'ab'
+    | 'ta'
+    | 'blob'
+    | 'map'
+    | 'set'
+    | 'arr'
+    | 'obj'
+    | 'unsupported';
+  v?: unknown;
+  /** For typed arrays: constructor name (e.g. "Uint8Array"). */
+  ctor?: string;
+  /** For blobs: mime type. */
+  mime?: string;
+}
+
+export interface CapturedIDBIndex {
+  name: string;
+  keyPath: string | string[] | null;
+  unique: boolean;
+  multiEntry: boolean;
+}
+
+export interface CapturedIDBRecord {
+  /** Serialized key (out-of-line keys preserved). */
+  key: SNode;
+  /** Serialized value. */
+  value: SNode;
+}
+
+export interface CapturedIDBStore {
+  name: string;
+  keyPath: string | string[] | null;
+  autoIncrement: boolean;
+  indexes: CapturedIDBIndex[];
+  records: CapturedIDBRecord[];
+}
+
+export interface CapturedIDBDatabase {
+  name: string;
+  version: number;
+  stores: CapturedIDBStore[];
+}
+
+export interface CapturedCacheEntry {
+  reqUrl: string;
+  reqMethod: string;
+  reqHeaders: [string, string][];
+  status: number;
+  statusText: string;
+  respHeaders: [string, string][];
+  /** base64-encoded response body. */
+  bodyB64: string;
+  supported: boolean;
+}
+
+export interface CapturedCache {
+  name: string;
+  entries: CapturedCacheEntry[];
+}
+
+/** The decrypted session payload. Highly sensitive: never logged. */
+export interface SessionPayload {
+  format: typeof PACKAGE_FORMAT;
+  version: typeof PACKAGE_VERSION;
+  createdAt: number;
+  source: {
+    browser: string;
+    origin: string;
+    userAgent: string;
+    title: string;
+    url: string;
+  };
+  state: {
+    cookies: CapturedCookie[];
+    localStorage: [string, string][];
+    sessionStorage: [string, string][];
+    indexedDB: CapturedIDBDatabase[];
+    cacheStorage: CapturedCache[];
+  };
+  results: TransferComponentResult[];
+  unsupported: string[];
+}
+
+/** The encrypted, on-disk / on-wire package. No plaintext secrets. */
+export interface EncryptedPackage {
+  format: typeof PACKAGE_FORMAT;
+  version: typeof PACKAGE_VERSION;
+  alg: 'AES-256-GCM';
+  kdf: 'PBKDF2-SHA256';
+  iterations: number;
+  salt: string; // base64
+  iv: string; // base64
+  createdAt: number;
+  expiresAt: number;
+  transferId: string;
+  /** Authenticated (AAD) but not encrypted; tampering breaks decryption. */
+  origin: string;
+  ciphertext: string; // base64
+}
+
+/** Non-sensitive summary shown to the user before applying a transfer. */
+export interface PayloadSummary {
+  origin: string;
+  createdAt: number;
+  expiresAt: number;
+  counts: Record<TransferComponent, number>;
+  results: TransferComponentResult[];
+  unsupported: string[];
+}
+
+export type ConflictStrategy = 'replace' | 'merge' | 'cancel';
+
+export interface VerificationLine {
+  component: TransferComponent;
+  expected: number;
+  actual: number;
+  ok: boolean;
+}
+
+export interface VerificationReport {
+  lines: VerificationLine[];
+  passed: boolean;
+  results: TransferComponentResult[];
+  reloaded: boolean;
+}
+
+/** Non-transferable state the product is explicitly honest about. */
+export const NON_TRANSFERABLE: string[] = [
+  'WebAuthn / passkeys (hardware & platform authenticators)',
+  'Hardware-backed credentials (TPM / Secure Enclave)',
+  'OS credential stores',
+  'TLS / channel-bound session state',
+  'Service-worker runtime memory',
+  'Active JavaScript in-memory state',
+  'Browser-managed encryption keys & profile identity',
+];
