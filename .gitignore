@@ -89,3 +89,6 @@ android-sdk/
 credentials.json
 *.key
 .credentials
+chrome-store/
+**/chrome-store/
+package-lock.json
