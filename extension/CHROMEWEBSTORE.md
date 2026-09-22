@@ -8,10 +8,11 @@
 - **Name**: Session Transfer
 - **Extension ID**: `fnfmlchbfofjdfeibgdkcibfjjlfcefc`
 - **Publisher ID**: `9637cb78-fa33-49dd-a4cb-91066ff182e3`
-- **Version**: `1.2.0`
+- **Version**: `1.2.1`
 - **Manifest Version**: `MV3`
 - **Language**: `English`
 - **Category**: `Productivity`
+- **Status**: `Pending review`
 
 ---
 
@@ -77,7 +78,7 @@ Google review requires specific plain-English justification for each declared pe
   - **Web Page Data & Content**: Collected: Yes | Stored: No | Purpose: Parse and visualize JSON or user-requested data directly within the browser context.
   - **Analytics & Telemetry**: Collected: No | Stored: No | Purpose: None collected.
 
-- **Privacy Policy URL**: https://session-bridge-4.preview.emergentagent.com/privacy
+- **Privacy Policy URL**: `https://ravitejakamalapuram.github.io/session-transfer.html`
 
 ---
 
@@ -96,9 +97,9 @@ Google review requires specific plain-English justification for each declared pe
 - [x] No `eval()` or remotely hosted code
 - [x] No secrets, private keys, or API tokens in package
 - [x] Distributable archive contains `manifest.json` at root
-- [ ] Extension registered in Chrome Web Store Developer Dashboard
-- [ ] CWS API OAuth credentials configured (`.env`)
-- [ ] Final human confirmation obtained before submission
+- [x] Extension registered in Chrome Web Store Developer Dashboard
+- [x] Privacy policy hosted and validated on GitHub Pages
+- [x] Final submission completed for review
 
 ---
 
@@ -106,4 +107,5 @@ Google review requires specific plain-English justification for each declared pe
 
 | Version | Date | Status | Package ZIP | Notes |
 | :--- | :--- | :--- | :--- | :--- |
-| `1.2.0` | 2026-09-20 | Draft / Ready | `chrome-store/builds/session-transfer-v1.2.0.zip` | Automated build & verification passed |
+| `1.2.0` | 2026-09-20 | Rejected | `session-transfer-v1.2.0.zip` | Rejected under Purple Nickel due to third-party preview privacy URL |
+| `1.2.1` | 2026-09-22 | Pending review | `session-transfer-v1.2.1.zip` | Fixed privacy policy URL to dedicated GitHub Pages site and resubmitted |

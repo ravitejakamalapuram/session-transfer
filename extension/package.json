@@ -1,6 +1,6 @@
 {
   "name": "session-transfer",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Securely transfer authenticated browser session state (cookies, localStorage, sessionStorage, IndexedDB, Cache Storage) between Chrome profiles/devices. AES-256-GCM encrypted, fully local, no server.",
   "type": "module",
   "private": true,
