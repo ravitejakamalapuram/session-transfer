@@ -53,6 +53,40 @@ function formatBytes(n: number): string {
 
 const LOGO = chrome.runtime.getURL('icons/icon48.png');
 
+// The popup closes whenever it loses focus (switching windows to copy the package or
+// code, or opening the file picker), which used to wipe the Receive form. The form is
+// kept in chrome.storage.session (memory only, extension-only) until it is used or
+// abandoned, and file loading happens in a full tab where the picker can't close it.
+const DRAFT_KEY = 'receiveDraft';
+const DRAFT_TTL_MS = 30 * 60 * 1000;
+const IS_RECEIVE_TAB = location.hash === '#receive';
+const CODE_PATTERN = /^[A-Za-z0-9]{4}[-\s]?[A-Za-z0-9]{4}[-\s]?[A-Za-z0-9]{4}$/;
+
+interface ReceiveDraft {
+  packageText: string;
+  code: string;
+  fileName: string;
+  savedAt: number;
+}
+
+async function loadDraft(): Promise<ReceiveDraft | null> {
+  try {
+    const draft = (await chrome.storage.session.get(DRAFT_KEY))[DRAFT_KEY] as ReceiveDraft | undefined;
+    if (!draft || Date.now() - draft.savedAt > DRAFT_TTL_MS) return null;
+    return draft;
+  } catch {
+    return null;
+  }
+}
+
+function saveDraft(draft: Omit<ReceiveDraft, 'savedAt'>): void {
+  chrome.storage.session.set({ [DRAFT_KEY]: { ...draft, savedAt: Date.now() } }).catch(() => undefined);
+}
+
+function clearDraft(): void {
+  chrome.storage.session.remove(DRAFT_KEY).catch(() => undefined);
+}
+
 export default function App() {
   const [view, setView] = useState<View>('loading');
   const [detect, setDetect] = useState<DetectInfo | null>(null);
@@ -77,17 +111,39 @@ export default function App() {
   const cleanup = useRef<(() => void) | null>(null);
 
   useEffect(() => {
-    const stop = runOp({ type: 'detect' }, (msg) => {
-      if (msg.type === 'detected') {
-        setDetect(msg.info);
-        setView('home');
-      } else if (msg.type === 'error') {
-        setErrorMsg(msg.message);
-        setView('error');
+    let stop: (() => void) | undefined;
+    let cancelled = false;
+    loadDraft().then((draft) => {
+      if (cancelled) return;
+      if (draft) {
+        setPackageText(draft.packageText);
+        setCode(draft.code);
+        setFileName(draft.fileName);
       }
+      if (IS_RECEIVE_TAB) {
+        setView('receive');
+        return;
+      }
+      stop = runOp({ type: 'detect' }, (msg) => {
+        if (msg.type === 'detected') {
+          setDetect(msg.info);
+          setView(draft ? 'receive' : 'home');
+        } else if (msg.type === 'error') {
+          setErrorMsg(msg.message);
+          setView('error');
+        }
+      });
     });
-    return () => stop();
+    return () => {
+      cancelled = true;
+      stop?.();
+    };
   }, []);
+
+  useEffect(() => {
+    if (view === 'receive' && (packageText || code || fileName)) saveDraft({ packageText, code, fileName });
+    if (view === 'restored') clearDraft();
+  }, [view, packageText, code, fileName]);
 
   const toError = (m: string) => {
     setErrorMsg(m);
@@ -183,8 +239,19 @@ export default function App() {
     reader.readAsText(file);
   };
 
+  const openReceiveTab = () => {
+    saveDraft({ packageText, code, fileName });
+    chrome.tabs.create({ url: chrome.runtime.getURL('index.html#receive') });
+    window.close();
+  };
+
   const reset = () => {
     cleanup.current?.();
+    clearDraft();
+    if (IS_RECEIVE_TAB) {
+      window.close();
+      return;
+    }
     setView('home');
     setSummary(null);
     setMismatch(null);
@@ -212,6 +279,7 @@ export default function App() {
             detect={detect}
             onTransfer={startCollect}
             onReceive={() => {
+              clearDraft();
               setPackageText('');
               setCode('');
               setFileName('');
@@ -258,6 +326,7 @@ export default function App() {
             setCode={setCode}
             fileName={fileName}
             onFile={onFile}
+            onOpenTab={IS_RECEIVE_TAB ? undefined : openReceiveTab}
             onInspect={startInspect}
             onBack={reset}
           />
@@ -487,6 +556,7 @@ function Receive({
   setCode,
   fileName,
   onFile,
+  onOpenTab,
   onInspect,
   onBack,
 }: {
@@ -496,25 +566,54 @@ function Receive({
   setCode: (v: string) => void;
   fileName: string;
   onFile: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  /** Set in the popup: file loading moves to a full tab, where the picker can't close it. */
+  onOpenTab?: () => void;
   onInspect: () => void;
   onBack: () => void;
 }) {
-  const ready = packageText.trim().length > 20 && code.trim().length >= 8;
+  const hasPackage = packageText.trim().length > 20;
+  const hasCode = code.trim().length >= 8;
+  const ready = hasPackage && hasCode;
+  const missing = !hasPackage && !hasCode
+    ? 'Add the encrypted package and the transfer code to continue.'
+    : !hasPackage
+      ? 'Add the encrypted package (load the .stpkg file or paste it above). The code alone can’t decrypt anything.'
+      : !hasCode
+        ? 'Enter the transfer code from the sending device.'
+        : '';
+
+  // Route pasted content to the right field: people often paste the code into the
+  // package box, or the package into the code box.
+  const onPackageChange = (v: string) => {
+    if (CODE_PATTERN.test(v.trim())) setCode(v.trim());
+    else setPackageText(v);
+  };
+  const onCodeChange = (v: string) => {
+    if (v.trim().startsWith('{')) setPackageText(v.trim());
+    else setCode(v);
+  };
+
   return (
     <div className="gap fade-in">
       <div className="section-title">Receive session</div>
 
-      <label className="btn ghost" style={{ cursor: 'pointer' }} data-testid="load-file-label">
-        {fileName ? `📄 ${fileName}` : '📁 Load package file (.stpkg)'}
-        <input type="file" accept=".stpkg,.json,application/json" style={{ display: 'none' }} onChange={onFile} data-testid="package-file-input" />
-      </label>
+      {onOpenTab ? (
+        <button className="btn ghost" onClick={onOpenTab} data-testid="load-file-label">
+          {fileName ? `📄 ${fileName}` : '📁 Load package file (.stpkg)'}
+        </button>
+      ) : (
+        <label className="btn ghost" style={{ cursor: 'pointer' }} data-testid="load-file-label">
+          {fileName ? `📄 ${fileName}` : '📁 Load package file (.stpkg)'}
+          <input type="file" accept=".stpkg,.json,application/json" style={{ display: 'none' }} onChange={onFile} data-testid="package-file-input" />
+        </label>
+      )}
 
       <textarea
         className="textarea"
         rows={4}
         placeholder="…or paste the encrypted package here"
         value={packageText}
-        onChange={(e) => setPackageText(e.target.value)}
+        onChange={(e) => onPackageChange(e.target.value)}
         data-testid="package-textarea"
       />
 
@@ -524,12 +623,17 @@ function Receive({
           className="input code-input"
           placeholder="ABC7-K9P2-WXYZ"
           value={code}
-          onChange={(e) => setCode(e.target.value)}
+          onChange={(e) => onCodeChange(e.target.value)}
           data-testid="code-input"
         />
       </div>
 
       <div className="spacer" />
+      {missing && (
+        <div className="callout info" style={{ fontSize: 10 }} data-testid="receive-missing-hint">
+          {missing}
+        </div>
+      )}
       <Button testid="inspect-button" onClick={onInspect} disabled={!ready}>
         Continue
       </Button>
