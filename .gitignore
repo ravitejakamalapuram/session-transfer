@@ -92,3 +92,12 @@ credentials.json
 chrome-store/
 **/chrome-store/
 package-lock.json
+
+# Emergent (AI app builder) scaffolding — not part of the extension
+.emergent/
+/test_result.md
+/test_reports/
+/memory/
+/test-results/
+/backend/
+/frontend/
