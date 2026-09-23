@@ -86,10 +86,10 @@ Google review requires specific plain-English justification for each declared pe
 
 ## 5. Store Assets Checklist
 
-- [x] Extension Icon (128×128 PNG): `icons/icon128.png`
-- [ ] Primary Screenshot (1280×800 PNG): `chrome-store/assets/screenshots/01-main-screen.png`
-- [ ] Promotional Tile (440×280 PNG): Optional but recommended for featured placement
-- [ ] Marquee Promo (1400×560 PNG): Optional
+- [x] Extension Icon (128×128 PNG): `extension/icons/icon128.png`
+- [ ] Primary Screenshot (1280×800 PNG): `extension/store-assets/screenshot-home.png`
+- [ ] Promotional Tile (440×280 PNG): `extension/store-assets/tile-small-440x280.png`
+- [ ] Marquee Promo (1400×560 PNG): `extension/store-assets/tile-marquee-1400x560.png`
 
 ---
 

@@ -18,7 +18,7 @@ from one Chrome profile, browser or device to another.
 |------|----------|
 | [`extension/`](extension/) | The extension source (TypeScript, React popup, Vite build). See [`extension/README.md`](extension/README.md) for architecture, permissions and development instructions. |
 | [`extension/docs/`](extension/docs/) | [Browser state capabilities](extension/docs/browser-state-capabilities.md) and [threat model](extension/docs/threat-model.md). |
-| [`extension/store-listing.md`](extension/store-listing.md), [`extension/CHROMEWEBSTORE.md`](extension/CHROMEWEBSTORE.md) | Chrome Web Store listing copy and publishing record. |
+| [`extension/store-listing.md`](extension/store-listing.md), [`CHROMEWEBSTORE.md`](CHROMEWEBSTORE.md) | Chrome Web Store listing copy and publishing record. |
 | `.github/workflows/` | CI/CD: builds `extension/dist` and publishes via the shared Chrome extension workflows. |
 
 ## Quick start

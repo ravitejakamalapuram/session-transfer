@@ -33,8 +33,9 @@ jobs:
   shared-ci:
     name: Shared Chrome Extension CI
     needs: build
-    uses: ravitejakamalapuram/.github-workflows-shared/.github/workflows/chrome-extension-ci.yml@v1.1.9
+    uses: ravitejakamalapuram/.github-workflows-shared/.github/workflows/chrome-extension-ci.yml@v1
     with:
       extension-dir: 'extension/dist'
+      build-command: 'cd extension && npm ci && npm run build'
       run-lint: false
       run-unit-tests: false
