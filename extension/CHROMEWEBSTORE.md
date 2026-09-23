@@ -43,7 +43,7 @@ IDEAL FOR
 • Switching computers or browsers without logging in again.
 • QA teams reproducing authenticated states quickly.
 
-Full capability table and threat model are linked from the website.
+Full capability table and threat model are published in the GitHub repository.
 ```
 
 ---
@@ -65,17 +65,19 @@ Google review requires specific plain-English justification for each declared pe
 ## 4. Privacy & Data Use Disclosure
 
 - **Data Flow**:
-  User Interaction
+  User clicks the toolbar action (Transfer / Receive)
   ⬇
-  Extension Frontend (Popup / Side Panel / Content Scripts)
+  Popup UI ↔ background service worker (on-demand, user-initiated injection into the selected tab only)
   ⬇
-  Local Browser Storage (chrome.storage.local / session)
+  Cookies + origin storage for the selected site are encrypted locally (AES-256-GCM, PBKDF2-SHA256)
   ⬇
-  External HTTPS API Endpoints
+  Encrypted `.stpkg` file saved by the user; optional encrypted, auto-expiring backup in chrome.storage.local
+  ⬇
+  No network transmission — the extension contacts no servers
 
 - **Data Handling Summary**:
-  - **User Preference & Session State**: Collected: Yes | Stored: Local | Purpose: Store application configuration, theme preferences, and local document state.
-  - **Web Page Data & Content**: Collected: Yes | Stored: No | Purpose: Parse and visualize JSON or user-requested data directly within the browser context.
+  - **Authentication information (cookies, site storage)**: Collected: Yes, only for the site the user selects and only when the user clicks Transfer | Stored: Only inside the user-downloaded encrypted package and, optionally, as an encrypted local backup that auto-expires after 30 minutes | Purpose: Move the user's own logged-in session to another browser/profile. Never transmitted to the developer or any third party.
+  - **Website content**: Collected: No | Stored: No | Purpose: None — page content is not read beyond the selected origin's storage.
   - **Analytics & Telemetry**: Collected: No | Stored: No | Purpose: None collected.
 
 - **Privacy Policy URL**: `https://ravitejakamalapuram.github.io/session-transfer.html`

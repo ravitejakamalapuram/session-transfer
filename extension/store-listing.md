@@ -23,7 +23,7 @@ Reviewers will install and run the extension, so do this first:
 
 ## STEP 2 — Create the item & upload
 
-1. Developer Dashboard → **New Item** → upload **`session-transfer-v1.2.0.zip`** (built, in `extension/` root or download from the demo page).
+1. Developer Dashboard → **New Item** → upload **`session-transfer-v1.2.0.zip`** (built, in `extension/` root).
 2. Version shows 1.2.0 automatically from the manifest.
 
 ## STEP 3 — Store listing tab (copy-paste ready)
@@ -54,7 +54,7 @@ Reviewers will install and run the extension, so do this first:
 > • Switching computers or browsers without logging in again.
 > • QA teams reproducing authenticated states quickly.
 >
-> Full capability table and threat model are linked from the website.
+> Full capability table and threat model are published in the GitHub repository.
 
 **Category:** Productivity
 **Language:** English
@@ -70,9 +70,9 @@ Reviewers will install and run the extension, so do this first:
 
 **Store icon:** `icons/icon128.png` (also inside the zip)
 
-**Official URL / Homepage:** `https://session-bridge-4.preview.emergentagent.com`
-**Privacy policy URL (required):** `https://session-bridge-4.preview.emergentagent.com/privacy`
-**Support site:** same homepage URL (or a GitHub repo URL if you have one)
+**Official URL / Homepage:** `https://github.com/ravitejakamalapuram/session-transfer`
+**Privacy policy URL (required):** `https://ravitejakamalapuram.github.io/session-transfer.html`
+**Support site:** `https://github.com/ravitejakamalapuram/session-transfer/issues`
 
 ## STEP 4 — Privacy practices tab (important — answer exactly like this)
 
@@ -114,4 +114,4 @@ Reviewers will install and run the extension, so do this first:
 | Screenshots ×4 | `store-assets/screenshot-{home,transfer,receive,restored}.png` |
 | Small promo tile | `store-assets/tile-small-440x280.png` |
 | Marquee tile | `store-assets/tile-marquee-1400x560.png` |
-| Privacy policy | https://session-bridge-4.preview.emergentagent.com/privacy |
+| Privacy policy | https://ravitejakamalapuram.github.io/session-transfer.html |
