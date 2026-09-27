@@ -14,7 +14,7 @@ permissions:
     required: true
     reason: "Resolve the active tab's URL/origin for collection, and open/reload the destination tab during restore"
     data_access: [tab_url]
-    security_impact: medium
+    security_impact: high # config/security.yaml: tabs is high-risk when used to read URLs, not just counts/titles
   - permission: storage
     required: true
     reason: "Persist encrypted, auto-expiring (30 min) local backups of destination state before an optional overwrite (chrome.storage.local); hold an in-memory-only draft of the receive flow (chrome.storage.session)"
