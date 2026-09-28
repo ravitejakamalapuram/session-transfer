@@ -16,6 +16,11 @@ on:
         description: "Only these target types (comma list: chrome,android). Empty = all."
         type: string
         default: ""
+      publish_type:
+        description: "Chrome Web Store publish type"
+        type: choice
+        options: [default, staged]
+        default: staged
   # Optional: release on every merge to main.
   # push:
   #   branches: [main]
@@ -32,4 +37,5 @@ jobs:
       bump: ${{ inputs.bump || 'auto' }}
       dry_run: ${{ inputs.dry_run || false }}
       targets: ${{ inputs.targets || '' }}
+      publish_type: ${{ inputs.publish_type || 'staged' }}
     secrets: inherit # Android only: upload-key secrets. Chrome needs no secrets at all.
