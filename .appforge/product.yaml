@@ -13,8 +13,9 @@ portfolio_state: MAINTENANCE
 # state: PRODUCTION / portfolio_state: MAINTENANCE. NOTE: this repo's
 # app-metadata.json says "draft"; that field is known-unreliable (see
 # the same note in StellarTab). Confirm against the live CWS listing.
-# CORRECTED 2026-09-30 (the earlier value was inferred from repo files and was wrong): CWS dashboard 2026-09-30: v1.2.2 is 'Ready to publish before 29 Oct 2026' - approved but NOT live yet, so no day-N clock runs until it is published.
-store_item_status: unpublished
+# CORRECTED 2026-10-01 against the live CWS dashboard: Status > Published says "published and available to the public" (4 users);
+# a newer draft (v1.2.2) is pending review. Earlier 2026-09-30 note ("not live yet") described that staged update, not the item.
+store_item_status: published
 # UNRECOVERABLE from repo evidence — backfill from the CWS listing.
 first_published: null
 repository: ravitejakamalapuram/session-transfer
