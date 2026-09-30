@@ -6,6 +6,16 @@ description: "Securely move an authenticated browser session between Chrome prof
 platform: [chrome]
 state: PRODUCTION
 portfolio_state: MAINTENANCE
+
+# §22.1 day-30/60/90 clock (APP-41). `first_published` is the
+# clock origin; `store_item_status` ∈ [published, draft, unlisted,
+# internal_track, unpublished] gates whether the clock runs at all.
+# state: PRODUCTION / portfolio_state: MAINTENANCE. NOTE: this repo's
+# app-metadata.json says "draft"; that field is known-unreliable (see
+# the same note in StellarTab). Confirm against the live CWS listing.
+store_item_status: published
+# UNRECOVERABLE from repo evidence — backfill from the CWS listing.
+first_published: null
 repository: ravitejakamalapuram/session-transfer
 owner: founder
 team: []
