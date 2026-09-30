@@ -52,6 +52,7 @@ function formatBytes(n: number): string {
 }
 
 const LOGO = chrome.runtime.getURL('icons/icon48.png');
+const FEEDBACK_URL = 'https://chromewebstore.google.com/detail/fnfmlchbfofjdfeibgdkcibfjjlfcefc/reviews';
 
 // The popup closes whenever it loses focus (switching windows to copy the package or
 // code, or opening the file picker), which used to wipe the Receive form. The form is
@@ -391,7 +392,10 @@ export default function App() {
 
       <footer className="footer">
         <span className="lock">🔒 Encrypted · Local only · No server</span>
-        <span className="lock">v1.2.0</span>
+        <a className="footer-link" href={FEEDBACK_URL} target="_blank" rel="noopener noreferrer" data-testid="feedback-link">
+          Rate or report a problem
+        </a>
+        <span className="lock">v{chrome.runtime.getManifest().version}</span>
       </footer>
     </div>
   );
