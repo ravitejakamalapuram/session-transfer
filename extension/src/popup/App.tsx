@@ -395,7 +395,7 @@ export default function App() {
         <a className="footer-link" href={FEEDBACK_URL} target="_blank" rel="noopener noreferrer" data-testid="feedback-link">
           Rate or report a problem
         </a>
-        <span className="lock">v1.2.0</span>
+        <span className="lock">v{chrome.runtime.getManifest().version}</span>
       </footer>
     </div>
   );
