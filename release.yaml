@@ -7,4 +7,7 @@ targets:
     item_id: fnfmlchbfofjdfeibgdkcibfjjlfcefc
     build: cd extension && npm ci && npm run build
     path: extension/dist # contains manifest.json after the build
+    # Store listing owned by this repo (PR checks validate it; the `listing` workflow opens a
+    # dashboard checklist issue, since the Chrome Web Store API cannot edit listings).
+    listing: chrome-store/store.config.json
     node: "20"
