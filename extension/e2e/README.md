@@ -8,5 +8,6 @@ The popup is opened as a normal tab (a real toolbar popup cannot be driven by Pl
 fixture tab is brought to front and the popup reloaded so the service worker sees it as the
 active tab.
 
-`send-flow.spec.ts` "very large session" is the APP-315 reproduction and fails until the send
-flow handles packages above the 64 MiB port message limit.
+`send-flow.spec.ts` "very large session" is the APP-315 reproduction: the package is above the
+64 MiB port message limit and is now streamed in chunks. The error/timeout tests inject faults in
+the popup page only (first collect port fails or stays silent) and check Retry works.

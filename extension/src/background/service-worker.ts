@@ -8,7 +8,7 @@ import { getActiveTab, originOf, reloadTab, resolveDestinationTab } from './tab-
 import { createBackup, purgeExpiredBackups } from './extension-storage';
 import { decryptPayload, encryptPayload } from '../core/crypto';
 import { logger } from '../core/logger';
-import { DetectInfo, OpRequest, OpResponse, PORT_NAME } from '../core/messages';
+import { CIPHERTEXT_CHUNK_CHARS, DetectInfo, OpRequest, OpResponse, PORT_NAME } from '../core/messages';
 import {
   CapturedCache,
   CapturedIDBDatabase,
@@ -39,11 +39,14 @@ async function inject<T>(tabId: number, func: PagedFunc, arg?: unknown): Promise
   return res?.result as T;
 }
 
-function send(port: chrome.runtime.Port, msg: OpResponse) {
+/** Returns false when the message could not be delivered (port closed, or message too large). */
+function send(port: chrome.runtime.Port, msg: OpResponse): boolean {
   try {
     port.postMessage(msg);
-  } catch {
-    /* port closed */
+    return true;
+  } catch (e) {
+    logger.error('Could not send message to popup', { type: msg.type, reason: (e as Error).message });
+    return false;
   }
 }
 
@@ -171,7 +174,14 @@ async function handleCollect(port: chrome.runtime.Port) {
 
   const { pkg, code } = await encryptPayload(payload, TRANSFER_TTL_MS);
   logger.info('Session collected & encrypted', { origin, sizeBytes, components: results.length, large: sizeBytes > LARGE_WARN_BYTES });
-  send(port, { type: 'collected', pkg, code, results, unsupported: NON_TRANSFERABLE, sizeBytes });
+  const { ciphertext, ...header } = pkg;
+  for (let i = 0; i < ciphertext.length; i += CIPHERTEXT_CHUNK_CHARS) {
+    const data = ciphertext.slice(i, i + CIPHERTEXT_CHUNK_CHARS);
+    if (!send(port, { type: 'ciphertextChunk', data })) return; // popup is gone; nobody to tell
+  }
+  if (!send(port, { type: 'collected', pkg: header, code, results, unsupported: NON_TRANSFERABLE, sizeBytes })) {
+    send(port, { type: 'error', message: 'The session was collected but could not be handed to the window. Please try again.' });
+  }
 }
 
 // ---------------------------------------------------------------- inspect
