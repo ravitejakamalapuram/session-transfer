@@ -12,6 +12,8 @@ import {
   Saved,
   saveReadyResult,
 } from './ready';
+import popupSource from './App.tsx?raw';
+import readySource from './ready.tsx?raw';
 
 /** In-memory stand-in for chrome.storage.session. */
 function fakeSession() {
@@ -195,5 +197,12 @@ describe('countdown', () => {
     assert.equal(countdown(61_500), '1:02');
     assert.equal(countdown(9_000), '0:09');
     assert.equal(countdown(-5), '0:00');
+  });
+});
+
+describe('popup copy', () => {
+  // docs/product-facts.yaml transfer_code: nothing marks a code as used, so it is not "one-time".
+  it('never calls the transfer code "one-time"', () => {
+    assert.doesNotMatch(popupSource + readySource, /one-time/i);
   });
 });

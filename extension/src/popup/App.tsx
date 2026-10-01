@@ -576,7 +576,7 @@ function Home({
       ) : (
         <div className="hint" data-testid="transfer-hint">
           {requireCode
-            ? 'Creates 2 things: an encrypted file and a one-time code. You need both on the other browser.'
+            ? 'Creates 2 things: an encrypted file and a transfer code. You need both on the other browser.'
             : 'Creates one encrypted package to copy or download. The key is inside it, so treat it like a password.'}
         </div>
       )}
