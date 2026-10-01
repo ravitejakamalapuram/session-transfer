@@ -6,9 +6,12 @@ from one Chrome profile, browser or device to another.
 
 > Export Session → Encrypt → Transfer → Import → Restore → Verify → Reload → you're logged in.
 
-- **AES-256-GCM** encryption with a one-time transfer code (PBKDF2-SHA256 key derivation).
-- **Fully local** — no server, no account, no telemetry. The package is an
-  encrypted file; the code is required to decrypt it.
+- **AES-256-GCM** encryption, always on. By default the key is inside the copied
+  text or downloaded file, so treat it like a password. An optional setting,
+  **Require a separate transfer code (more secure)**, derives the key from a
+  code you send on a second channel (PBKDF2-SHA256).
+- **Fully local** — no server, no account, no telemetry. Packages are only
+  accepted by the extension for 5 minutes.
 - **Origin-bound** — a package can only be restored into its own website origin.
 - **Honest** about what cannot be transferred (WebAuthn/passkeys, hardware credentials, TLS state).
 

@@ -31,20 +31,20 @@ Reviewers will install and run the extension, so do this first:
 **Name:** Session Transfer
 
 **Summary (short description, ≤132 chars):**
-> Move logged-in browser sessions between Chrome profiles or devices. AES-256-GCM encrypted, fully local, one-time code. No cloud.
+> Move logged-in browser sessions between Chrome profiles or devices. AES-256-GCM encrypted, fully local. Optional extra code. No cloud.
 
 **Description (detailed):**
 > Session Transfer moves an authenticated website session from one Chrome browser, profile, or computer to another in a couple of clicks — no re-login, no MFA loop.
 >
 > HOW IT WORKS
 > 1. On the source browser, open the site, click the extension and press "Transfer Session".
-> 2. The extension captures cookies (including HttpOnly), localStorage, sessionStorage, IndexedDB and Cache Storage, then encrypts everything with AES-256-GCM using a one-time transfer code.
-> 3. On the destination browser, press "Receive Session", load the encrypted package and enter the code. State is restored, the page reloads, and a verification report confirms the result.
+> 2. The extension captures cookies (including HttpOnly), localStorage, sessionStorage, IndexedDB and Cache Storage, then encrypts everything with AES-256-GCM into one package that you copy or download.
+> 3. On the destination browser, press "Receive Session", paste or load the encrypted package (and enter the transfer code if the package asks for one). State is restored, the page reloads, and a verification report confirms the result.
 >
 > SECURITY & PRIVACY BY DESIGN
 > • 100% local — no servers, no accounts, no analytics, no tracking.
-> • AES-256-GCM with an ephemeral key derived via PBKDF2-SHA256 (210,000 iterations).
-> • One-time codes; packages expire after 5 minutes.
+> • AES-256-GCM with a fresh random key for every export. By default the key is inside the copied text or file, so treat it like a password. Turn on the separate transfer code setting to derive the key from a code you send on another channel (PBKDF2-SHA256, 210,000 iterations).
+> • The extension refuses packages older than 5 minutes.
 > • Strict origin isolation — a package can only ever be restored into its own website origin.
 > • Existing destination sessions are never silently overwritten: choose Replace, Merge or Cancel, with an optional encrypted, auto-expiring backup.
 > • Honest about limits: WebAuthn/passkeys, hardware credentials and TLS-bound state cannot be transferred by any extension, and we say so in-product instead of faking success.
@@ -61,8 +61,8 @@ Reviewers will install and run the extension, so do this first:
 
 **Screenshots (1280×800)** — upload in this order, from `extension/store-assets/`:
 1. `screenshot-home.png` — "Session detected — one click to export"
-2. `screenshot-transfer.png` — "Encrypted, one-time code, 5-minute expiry"
-3. `screenshot-receive.png` — "Load the package + enter the code"
+2. `screenshot-transfer.png` — "Encrypted, copy or download, 5-minute expiry"
+3. `screenshot-receive.png` — "Paste or load the package"
 4. `screenshot-restored.png` — "Logged in & verified"
 
 **Small promo tile (440×280):** `store-assets/tile-small-440x280.png`

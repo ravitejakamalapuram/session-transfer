@@ -7,19 +7,24 @@ device to another with a near one-click experience.
 > **Export Session → Encrypt → Transfer → Import → Restore → Verify → Reload → you're logged in.**
 
 - **Manifest V3**, TypeScript (strict), React popup, Vite build.
-- **AES-256-GCM** encryption with a one-time transfer code (PBKDF2-SHA256 key derivation).
-- **Fully local** — no server, no account, no telemetry. The package is just an
-  encrypted file; the code is required to decrypt it.
+- **AES-256-GCM** encryption, always on. By default the key is inside the copied
+  text or downloaded file, so treat it like a password. An optional setting,
+  **Require a separate transfer code (more secure)**, derives the key from a
+  code you send on a second channel (PBKDF2-SHA256).
+- **Fully local** — no server, no account, no telemetry. Packages are only
+  accepted by the extension for 5 minutes.
 - **Honest** about what cannot be transferred (WebAuthn/passkeys, hardware credentials, TLS state).
 
 ## How it works
 
 **Source browser** → open the site → click the extension → **Transfer Session**.
 The extension collects state, serializes it (structured-clone-aware), encrypts it, and
-gives you a one-time **code** + a downloadable **`.stpkg`** package.
+gives you one encrypted package to **copy** or **download** (a `.stpkg` file). With
+the *separate transfer code* setting on, it also gives you a separate **transfer code** (new for each export) to send
+on a different channel. By default there is no code: the key is inside the package, so anyone with the text can restore it until it expires after 5 minutes.
 
-**Destination browser** → click the extension → **Receive Session** → load the package
-+ enter the code → **Import Session**. State is validated, restored into the site's own
+**Destination browser** → click the extension → **Receive Session** → paste the package or
+load the file → **Import Session** (enter the code only if the package asks for it). State is validated, restored into the site's own
 origin, the tab reloads, and a verification report is shown.
 
 See [`docs/browser-state-capabilities.md`](docs/browser-state-capabilities.md) and
@@ -85,19 +90,21 @@ yarn zip        # build + package -> session-transfer-vX.Y.Z.zip
 ## Try it end-to-end
 
 1. Log into any site in Chrome **Profile A**.
-2. Click the extension → **Transfer Session** → note the code, download the package.
+2. Click the extension → **Transfer Session** → **Copy** the text or **Download file**. (With *Require a separate transfer code* on, also note the code and send it on another channel.)
 3. Switch to **Profile B** (same or different machine) with the extension installed.
-4. Click the extension → **Receive Session** → load the package + enter the code → **Import Session**.
+4. Click the extension → **Receive Session** → paste the package or load the file (+ enter the code if asked) → **Import Session**.
 5. The site tab opens/reloads authenticated. A verification report confirms the counts.
 
 ## Roadmap (post-MVP)
 
-- Transport abstraction implementations (QR pairing, one-time code relay, WebRTC).
+- Transport abstraction implementations (QR pairing, code relay, WebRTC).
 - `test-app/` fixture site + Playwright E2E across cookie/localStorage/IDB apps.
 - Merge-conflict field-level diffing.
 
 ## Security
 
 This handles data equivalent to passwords. Read the
-[threat model](docs/threat-model.md). Never share your transfer code over the same
+[threat model](docs/threat-model.md). In the default mode, anyone who has the copied
+text or file can restore your session, so do not share it and delete the file after
+you import it. With the separate-code setting on, never send the code over the same
 channel as the package.

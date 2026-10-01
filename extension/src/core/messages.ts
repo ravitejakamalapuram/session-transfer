@@ -13,15 +13,21 @@ import {
 
 export const PORT_NAME = 'session-transfer-op';
 
+/** Ciphertext characters per port message; well under the 64 MiB port limit. */
+export const CIPHERTEXT_CHUNK_CHARS = 8 * 1024 * 1024;
+
 /** Popup -> background */
 export type OpRequest =
   | { type: 'detect' }
-  | { type: 'collect' }
-  | { type: 'inspect'; packageText: string; code: string }
+  // A package over the 64 MiB port limit is streamed in `packageChunk` messages first; the
+  // following inspect/restore then carries an empty `packageText`.
+  | { type: 'packageChunk'; data: string }
+  | { type: 'collect'; requireCode?: boolean }
+  | { type: 'inspect'; packageText: string; code?: string }
   | {
       type: 'restore';
       packageText: string;
-      code: string;
+      code?: string;
       conflict?: ConflictStrategy;
       backup?: boolean;
       confirmOriginMismatch?: boolean;
@@ -31,15 +37,21 @@ export type OpRequest =
 export type OpResponse =
   | { type: 'detected'; info: DetectInfo }
   | { type: 'progress'; component: TransferComponent; status: TransferStatus; itemCount?: number }
+  // A chrome.runtime.Port message is capped at 64 MiB, so a large package's ciphertext is
+  // streamed in `ciphertextChunk` messages first and `collected` carries the rest of it.
+  | { type: 'ciphertextChunk'; data: string }
   | {
       type: 'collected';
-      pkg: EncryptedPackage;
-      code: string;
+      pkg: Omit<EncryptedPackage, 'ciphertext'>;
+      /** The separate transfer code; null when the key is embedded in the package. */
+      code: string | null;
       results: TransferComponentResult[];
       unsupported: string[];
       sizeBytes: number;
     }
   | { type: 'inspected'; summary: PayloadSummary }
+  // The package needs a transfer code and none was given; nothing was decrypted.
+  | { type: 'codeRequired'; expiresAt: number; origin: string }
   | { type: 'conflict'; destOrigin: string; counts: Record<TransferComponent, number> }
   | { type: 'originMismatch'; packageOrigin: string; destOrigin: string }
   | { type: 'restored'; report: VerificationReport; backedUp: boolean }

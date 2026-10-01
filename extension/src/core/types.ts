@@ -1,7 +1,12 @@
 // Shared domain types for the Session Transfer extension.
 
 export const PACKAGE_FORMAT = 'browser-session-transfer' as const;
-export const PACKAGE_VERSION = 1 as const;
+export const PACKAGE_VERSION = 2 as const;
+/** Oldest package version the receiver still reads (v1 = transfer code only). */
+export const LEGACY_PACKAGE_VERSION = 1 as const;
+
+/** Where the decryption key comes from: inside the package, or derived from a separate transfer code. */
+export type KeyMode = 'embedded' | 'code';
 
 /** Per-storage-mechanism outcome. Never contains secret values. */
 export type TransferStatus = 'success' | 'partial' | 'failed' | 'unsupported' | 'pending' | 'running';
@@ -106,7 +111,7 @@ export interface CapturedCache {
 /** The decrypted session payload. Highly sensitive: never logged. */
 export interface SessionPayload {
   format: typeof PACKAGE_FORMAT;
-  version: typeof PACKAGE_VERSION;
+  version: number;
   createdAt: number;
   source: {
     browser: string;
@@ -129,16 +134,21 @@ export interface SessionPayload {
 /** The encrypted, on-disk / on-wire package. No plaintext secrets. */
 export interface EncryptedPackage {
   format: typeof PACKAGE_FORMAT;
-  version: typeof PACKAGE_VERSION;
+  /** 2 for new packages; 1 (code only, AAD = origin) is still read. */
+  version: number;
+  /** v2 only. v1 packages are always 'code'. */
+  keyMode?: KeyMode;
   alg: 'AES-256-GCM';
-  kdf: 'PBKDF2-SHA256';
-  iterations: number;
-  salt: string; // base64
+  /** base64 AES key, 32 bytes. Present only when keyMode = 'embedded'. */
+  key?: string;
+  kdf?: 'PBKDF2-SHA256'; // code mode / v1
+  iterations?: number; // code mode / v1
+  salt?: string; // base64, code mode / v1
   iv: string; // base64
   createdAt: number;
   expiresAt: number;
   transferId: string;
-  /** Authenticated (AAD) but not encrypted; tampering breaks decryption. */
+  /** Authenticated (AAD) but not encrypted; tampering breaks decryption (code mode / v1). */
   origin: string;
   ciphertext: string; // base64
 }

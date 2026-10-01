@@ -23,7 +23,6 @@ import { DetectInfo, OpResponse } from '../core/messages';
 type View =
   | 'loading'
   | 'home'
-  | 'collecting'
   | 'ready'
   | 'receive'
   | 'inspecting'
@@ -36,7 +35,22 @@ type View =
 
 type ProgressMap = Partial<Record<TransferComponent, { status: TransferStatus; itemCount?: number }>>;
 
+// Large sessions take ~1 minute to encrypt; past this the flow is treated as stuck.
+const COLLECT_TIMEOUT_MS = 3 * 60 * 1000;
+const COLLECT_TIMEOUT_MESSAGE =
+  'Collecting the session took too long and was stopped. The page may hold a very large amount of data. Please try again.';
+
 const NOTHING_SAVED: Saved = { package: false, code: false };
+
+// "Require a separate transfer code" setting. Per profile (storage.local), absent = OFF.
+const SETTING_KEY = 'settings.requireTransferCode';
+async function loadRequireCode(): Promise<boolean> {
+  try {
+    return (await chrome.storage.local.get(SETTING_KEY))[SETTING_KEY] === true;
+  } catch {
+    return false;
+  }
+}
 
 const LOGO = chrome.runtime.getURL('icons/icon48.png');
 const FEEDBACK_URL = 'https://chromewebstore.google.com/detail/fnfmlchbfofjdfeibgdkcibfjjlfcefc/reviews';
@@ -48,6 +62,9 @@ const FEEDBACK_URL = 'https://chromewebstore.google.com/detail/fnfmlchbfofjdfeib
 const DRAFT_KEY = 'receiveDraft';
 const DRAFT_TTL_MS = 30 * 60 * 1000;
 const IS_RECEIVE_TAB = location.hash === '#receive';
+// A package this big is not shown in (or drafted from) the textarea: rendering and
+// serialising tens of MB on every change froze the receiver tab.
+const LARGE_PACKAGE_CHARS = 2 * 1024 * 1024;
 const CODE_PATTERN = /^[A-Za-z0-9]{4}[-\s]?[A-Za-z0-9]{4}[-\s]?[A-Za-z0-9]{4}$/;
 
 interface ReceiveDraft {
@@ -84,8 +101,16 @@ export default function App() {
   const [copied, setCopied] = useState<'code' | 'package' | null>(null);
   const [saved, setSaved] = useState<Saved>(NOTHING_SAVED);
   const [guard, setGuard] = useState(false);
+  const [requireCode, setRequireCode] = useState(false);
+  const [codeNeeded, setCodeNeeded] = useState(false);
+  const savedRef = useRef<Saved>(NOTHING_SAVED);
+  savedRef.current = saved;
 
-  const [packageText, setPackageText] = useState('');
+  const [packageText, setPackageTextRaw] = useState('');
+  const setPackageText = (v: string) => {
+    setPackageTextRaw(v);
+    setCodeNeeded(false);
+  };
   const [code, setCode] = useState('');
   const [fileName, setFileName] = useState('');
 
@@ -96,6 +121,8 @@ export default function App() {
   const [backup, setBackup] = useState(true);
   const [report, setReport] = useState<{ report: VerificationReport; backedUp: boolean } | null>(null);
   const [errorMsg, setErrorMsg] = useState('');
+  const [collecting, setCollecting] = useState(false);
+  const [retry, setRetry] = useState<(() => void) | null>(null);
 
   const restoreOpts = useRef<{ confirmOriginMismatch?: boolean; conflict?: ConflictStrategy; backup?: boolean }>({});
   const cleanup = useRef<(() => void) | null>(null);
@@ -103,8 +130,9 @@ export default function App() {
   useEffect(() => {
     let stop: (() => void) | undefined;
     let cancelled = false;
-    Promise.all([loadDraft(), IS_RECEIVE_TAB ? null : loadReadyResult()]).then(([draft, ready]) => {
+    Promise.all([loadDraft(), IS_RECEIVE_TAB ? null : loadReadyResult(), loadRequireCode()]).then(([draft, ready, req]) => {
       if (cancelled) return;
+      setRequireCode(req);
       if (ready) {
         setCollected(ready.collected);
         setSaved(ready.saved);
@@ -135,7 +163,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (view === 'receive' && (packageText || code || fileName)) saveDraft({ packageText, code, fileName });
+    if (view === 'receive' && (packageText || code || fileName) && packageText.length <= LARGE_PACKAGE_CHARS) saveDraft({ packageText, code, fileName });
     if (view === 'restored') clearDraft();
   }, [view, packageText, code, fileName]);
 
@@ -143,38 +171,65 @@ export default function App() {
     if (view === 'ready' && collected) saveReadyResult({ collected, saved });
   }, [view, collected, saved]);
 
-  const toError = (m: string) => {
+  const toError = (m: string, onRetry: (() => void) | null = null) => {
     setErrorMsg(m);
+    setRetry(onRetry ? () => onRetry : null);
     setView('error');
   };
 
   // ---------------------------------------------------------------- collect
+  // Progress is shown on the Home screen the user pressed the button on (no separate screen).
   const startCollect = useCallback(() => {
     setProgress(Object.fromEntries(ALL_COMPONENTS.map((c) => [c, { status: 'pending' as TransferStatus }])));
-    setView('collecting');
+    setCollecting(true);
+    setView('home');
     cleanup.current?.();
-    cleanup.current = runOp({ type: 'collect' }, (msg: OpResponse) => {
+    const chunks: string[] = [];
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const finish = () => {
+      clearTimeout(timer);
+      setCollecting(false);
+    };
+    const fail = (message: string) => {
+      cleanup.current?.();
+      finish();
+      toError(message, startCollect);
+    };
+    timer = setTimeout(() => fail(COLLECT_TIMEOUT_MESSAGE), COLLECT_TIMEOUT_MS);
+    cleanup.current = runOp({ type: 'collect', requireCode }, (msg: OpResponse) => {
       if (msg.type === 'progress') {
         setProgress((p) => ({ ...p, [msg.component]: { status: msg.status, itemCount: msg.itemCount } }));
+      } else if (msg.type === 'ciphertextChunk') {
+        chunks.push(msg.data);
       } else if (msg.type === 'collected') {
-        setCollected({ pkg: msg.pkg, code: msg.code, results: msg.results, unsupported: msg.unsupported, sizeBytes: msg.sizeBytes });
+        finish();
+        setCollected({
+          pkg: { ...msg.pkg, ciphertext: chunks.join('') },
+          code: msg.code,
+          results: msg.results,
+          unsupported: msg.unsupported,
+          sizeBytes: msg.sizeBytes,
+        });
         setSaved(NOTHING_SAVED);
         setGuard(false);
         setView('ready');
       } else if (msg.type === 'error') {
-        toError(msg.message);
+        fail(msg.message);
       }
     });
-  }, []);
+  }, [requireCode]);
 
   // ---------------------------------------------------------------- inspect
   const startInspect = useCallback(() => {
     setView('inspecting');
     cleanup.current?.();
-    cleanup.current = runOp({ type: 'inspect', packageText, code }, (msg) => {
+    cleanup.current = runOp({ type: 'inspect', packageText, code: code.trim() || undefined }, (msg) => {
       if (msg.type === 'inspected') {
         setSummary(msg.summary);
         setView('inspect-ready');
+      } else if (msg.type === 'codeRequired') {
+        setCodeNeeded(true);
+        setView('receive');
       } else if (msg.type === 'error') {
         toError(msg.message);
       }
@@ -188,7 +243,7 @@ export default function App() {
       setView('restoring');
       cleanup.current?.();
       cleanup.current = runOp(
-        { type: 'restore', packageText, code, ...restoreOpts.current },
+        { type: 'restore', packageText, code: code.trim() || undefined, ...restoreOpts.current },
         (msg) => {
           if (msg.type === 'originMismatch') {
             setMismatch({ packageOrigin: msg.packageOrigin, destOrigin: msg.destOrigin });
@@ -196,6 +251,9 @@ export default function App() {
           } else if (msg.type === 'conflict') {
             setConflict({ destOrigin: msg.destOrigin, counts: msg.counts });
             setView('conflict');
+          } else if (msg.type === 'codeRequired') {
+            setCodeNeeded(true);
+            setView('receive');
           } else if (msg.type === 'restored') {
             setReport({ report: msg.report, backedUp: msg.backedUp });
             setView('restored');
@@ -225,10 +283,10 @@ export default function App() {
 
   const copy = async (what: 'code' | 'package') => {
     if (!collected) return;
-    const text = what === 'code' ? collected.code : JSON.stringify(collected.pkg);
+    const text = what === 'code' ? collected.code ?? '' : JSON.stringify(collected.pkg);
     const ok = await navigator.clipboard.writeText(text).then(() => true, () => false);
     if (!ok) return;
-    setSaved((s) => ({ ...s, [what]: true }));
+    setSaved((s) => ({ ...s, [what]: true, copied: true }));
     setCopied(what);
     setTimeout(() => setCopied(null), 1500);
   };
@@ -239,16 +297,24 @@ export default function App() {
     setFileName(file.name);
     const reader = new FileReader();
     reader.onload = () => setPackageText(String(reader.result ?? ''));
+    reader.onerror = () => toError('Could not read the file.');
     reader.readAsText(file);
   };
 
   const openReceiveTab = () => {
-    saveDraft({ packageText, code, fileName });
+    if (packageText.length <= LARGE_PACKAGE_CHARS) saveDraft({ packageText, code, fileName });
     chrome.tabs.create({ url: chrome.runtime.getURL('index.html#receive') });
     window.close();
   };
 
+  // Done overwrites the clipboard (we cannot read it to check it still holds our text; that
+  // needs clipboardRead). Needs a user gesture, so it is best-effort when the popup timer fires.
+  const clearClipboard = () => {
+    if (savedRef.current.copied) navigator.clipboard.writeText('').catch(() => undefined);
+  };
+
   const finishTransfer = () => {
+    clearClipboard();
     clearReadyResult();
     setCollected(null);
     setSaved(NOTHING_SAVED);
@@ -263,6 +329,7 @@ export default function App() {
   };
 
   const onExpired = useCallback(() => {
+    if (savedRef.current.copied) navigator.clipboard.writeText('').catch(() => undefined);
     clearReadyResult();
   }, []);
 
@@ -298,6 +365,13 @@ export default function App() {
         {view === 'home' && detect && (
           <Home
             detect={detect}
+            requireCode={requireCode}
+            onRequireCode={(v) => {
+              setRequireCode(v);
+              chrome.storage.local.set({ [SETTING_KEY]: v }).catch(() => undefined);
+            }}
+            collecting={collecting}
+            progress={progress}
             onTransfer={startCollect}
             onReceive={() => {
               clearDraft();
@@ -307,23 +381,6 @@ export default function App() {
               setView('receive');
             }}
           />
-        )}
-
-        {view === 'collecting' && (
-          <div className="gap fade-in">
-            <div className="section-title">Collecting session…</div>
-            <div className="rows">
-              {ALL_COMPONENTS.map((c) => (
-                <ComponentRow
-                  key={c}
-                  component={c}
-                  status={progress[c]?.status ?? 'pending'}
-                  value={progress[c]?.itemCount != null ? String(progress[c]?.itemCount) : ''}
-                />
-              ))}
-            </div>
-            <div className="callout info">Serializing &amp; encrypting with an ephemeral key…</div>
-          </div>
         )}
 
         {view === 'ready' && collected && (
@@ -350,6 +407,7 @@ export default function App() {
             setPackageText={setPackageText}
             code={code}
             setCode={setCode}
+            codeNeeded={codeNeeded}
             fileName={fileName}
             onFile={onFile}
             onOpenTab={IS_RECEIVE_TAB ? undefined : openReceiveTab}
@@ -408,6 +466,11 @@ export default function App() {
             <div className="callout danger" data-testid="error-message">
               {errorMsg}
             </div>
+            {retry && (
+              <Button testid="error-retry" onClick={retry}>
+                Retry
+              </Button>
+            )}
             <Button testid="error-back" variant="ghost" onClick={reset}>
               Back
             </Button>
@@ -436,7 +499,23 @@ function Loading({ label }: { label?: string }) {
   );
 }
 
-function Home({ detect, onTransfer, onReceive }: { detect: DetectInfo; onTransfer: () => void; onReceive: () => void }) {
+function Home({
+  detect,
+  requireCode,
+  onRequireCode,
+  collecting,
+  progress,
+  onTransfer,
+  onReceive,
+}: {
+  detect: DetectInfo;
+  requireCode: boolean;
+  onRequireCode: (v: boolean) => void;
+  collecting: boolean;
+  progress: ProgressMap;
+  onTransfer: () => void;
+  onReceive: () => void;
+}) {
   return (
     <div className="gap fade-in">
       <div className="origin-card" data-testid="origin-card">
@@ -474,13 +553,44 @@ function Home({ detect, onTransfer, onReceive }: { detect: DetectInfo; onTransfe
 
       <div className="spacer" />
 
-      <Button testid="transfer-session-button" onClick={onTransfer} disabled={!detect.supported}>
-        Transfer Session
+      <Button testid="transfer-session-button" onClick={onTransfer} disabled={!detect.supported || collecting}>
+        {collecting ? (
+          <>
+            <span className="spinner" /> Collecting session…
+          </>
+        ) : (
+          'Transfer Session'
+        )}
       </Button>
-      <div className="hint" data-testid="transfer-hint">
-        Creates 2 things: an encrypted file and a one-time code. You need both on the other browser.
-      </div>
-      <Button testid="receive-session-button" variant="ghost" onClick={onReceive}>
+      {collecting ? (
+        <div className="rows" data-testid="collect-progress">
+          {ALL_COMPONENTS.map((c) => (
+            <ComponentRow
+              key={c}
+              component={c}
+              status={progress[c]?.status ?? 'pending'}
+              value={progress[c]?.itemCount != null ? String(progress[c]?.itemCount) : ''}
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="hint" data-testid="transfer-hint">
+          {requireCode
+            ? 'Creates 2 things: an encrypted file and a one-time code. You need both on the other browser.'
+            : 'Creates one encrypted package to copy or download. The key is inside it, so treat it like a password.'}
+        </div>
+      )}
+      <label className="check-row" data-testid="require-code-toggle">
+        <input
+          type="checkbox"
+          checked={requireCode}
+          disabled={collecting}
+          onChange={(e) => onRequireCode(e.target.checked)}
+          data-testid="require-code-checkbox"
+        />
+        Require a separate transfer code (more secure)
+      </label>
+      <Button testid="receive-session-button" variant="ghost" onClick={onReceive} disabled={collecting}>
         Receive Session
       </Button>
       <div className="hint">Cookies, storage, IndexedDB &amp; caches are captured for this origin only.</div>
@@ -502,6 +612,7 @@ function Receive({
   setPackageText,
   code,
   setCode,
+  codeNeeded,
   fileName,
   onFile,
   onOpenTab,
@@ -512,6 +623,8 @@ function Receive({
   setPackageText: (v: string) => void;
   code: string;
   setCode: (v: string) => void;
+  /** The package asked for a transfer code (code mode / older packages). */
+  codeNeeded: boolean;
   fileName: string;
   onFile: (e: React.ChangeEvent<HTMLInputElement>) => void;
   /** Set in the popup: file loading moves to a full tab, where the picker can't close it. */
@@ -521,14 +634,13 @@ function Receive({
 }) {
   const hasPackage = packageText.trim().length > 20;
   const hasCode = code.trim().length >= 8;
-  const ready = hasPackage && hasCode;
-  const missing = !hasPackage && !hasCode
-    ? 'Add the encrypted package and the transfer code to continue.'
-    : !hasPackage
-      ? 'Add the encrypted package (load the .stpkg file or paste it above). The code alone can’t decrypt anything.'
-      : !hasCode
-        ? 'Enter the transfer code from the sending device.'
-        : '';
+  const showCode = codeNeeded || hasCode;
+  const ready = hasPackage && (!codeNeeded || hasCode);
+  const missing = !hasPackage
+    ? 'Add the encrypted package: load the .stpkg file or paste the text above.'
+    : codeNeeded && !hasCode
+      ? 'This package needs a transfer code. Enter the code from the sending device.'
+      : '';
 
   // Route pasted content to the right field: people often paste the code into the
   // package box, or the package into the code box.
@@ -546,7 +658,7 @@ function Receive({
       <div className="section-title">Receive session</div>
 
       <div className="section-title" data-testid="receive-step-package">
-        ① Encrypted package {hasPackage && <span className="step-check">✓</span>}
+        Encrypted package {hasPackage && <span className="step-check">✓</span>}
       </div>
       {onOpenTab ? (
         <button className="btn ghost" onClick={onOpenTab} data-testid="load-file-label">
@@ -559,27 +671,35 @@ function Receive({
         </label>
       )}
 
-      <textarea
-        className="textarea"
-        rows={4}
-        placeholder="…or paste the encrypted package here"
-        value={packageText}
-        onChange={(e) => onPackageChange(e.target.value)}
-        data-testid="package-textarea"
-      />
-
-      <div className="gap-sm">
-        <div className="section-title" data-testid="receive-step-code">
-          ② Transfer code {hasCode && <span className="step-check">✓</span>}
+      {packageText.length > LARGE_PACKAGE_CHARS ? (
+        <div className="callout info" style={{ fontSize: 10 }} data-testid="package-loaded-large">
+          Large package loaded ({(packageText.length / 1024 / 1024).toFixed(0)} MB). It is not shown here.
         </div>
-        <input
-          className="input code-input"
-          placeholder="ABC7-K9P2-WXYZ"
-          value={code}
-          onChange={(e) => onCodeChange(e.target.value)}
-          data-testid="code-input"
+      ) : (
+        <textarea
+          className="textarea"
+          rows={4}
+          placeholder="…or paste the encrypted package here"
+          value={packageText}
+          onChange={(e) => onPackageChange(e.target.value)}
+          data-testid="package-textarea"
         />
-      </div>
+      )}
+
+      {showCode && (
+        <div className="gap-sm">
+          <div className="section-title" data-testid="receive-step-code">
+            ② Transfer code {hasCode && <span className="step-check">✓</span>}
+          </div>
+          <input
+            className="input code-input"
+            placeholder="ABC7-K9P2-WXYZ"
+            value={code}
+            onChange={(e) => onCodeChange(e.target.value)}
+            data-testid="code-input"
+          />
+        </div>
+      )}
 
       <div className="spacer" />
       {missing && (

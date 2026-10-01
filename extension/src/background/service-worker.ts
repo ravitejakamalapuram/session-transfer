@@ -6,9 +6,9 @@ import { pageCollect, pageDetect, pageRestore } from './injected';
 import { collectCookies, countCookies, restoreCookies } from './cookie-manager';
 import { getActiveTab, originOf, reloadTab, resolveDestinationTab } from './tab-utils';
 import { createBackup, purgeExpiredBackups } from './extension-storage';
-import { decryptPayload, encryptPayload } from '../core/crypto';
+import { checkPackage, decryptPayload, encryptPayload, packageNeedsCode } from '../core/crypto';
 import { logger } from '../core/logger';
-import { DetectInfo, OpRequest, OpResponse, PORT_NAME } from '../core/messages';
+import { CIPHERTEXT_CHUNK_CHARS, DetectInfo, OpRequest, OpResponse, PORT_NAME } from '../core/messages';
 import {
   CapturedCache,
   CapturedIDBDatabase,
@@ -39,11 +39,14 @@ async function inject<T>(tabId: number, func: PagedFunc, arg?: unknown): Promise
   return res?.result as T;
 }
 
-function send(port: chrome.runtime.Port, msg: OpResponse) {
+/** Returns false when the message could not be delivered (port closed, or message too large). */
+function send(port: chrome.runtime.Port, msg: OpResponse): boolean {
   try {
     port.postMessage(msg);
-  } catch {
-    /* port closed */
+    return true;
+  } catch (e) {
+    logger.error('Could not send message to popup', { type: msg.type, reason: (e as Error).message });
+    return false;
   }
 }
 
@@ -98,7 +101,7 @@ function pageResultStatus(comp: TransferComponent, raw: any): TransferComponentR
   return { component: comp, status: raw.status, itemCount: count, error: raw.error };
 }
 
-async function handleCollect(port: chrome.runtime.Port) {
+async function handleCollect(port: chrome.runtime.Port, requireCode: boolean) {
   const tab = await getActiveTab();
   const origin = originOf(tab?.url);
   if (!tab || !origin || tab.id == null) {
@@ -169,15 +172,22 @@ async function handleCollect(port: chrome.runtime.Port) {
     return;
   }
 
-  const { pkg, code } = await encryptPayload(payload, TRANSFER_TTL_MS);
-  logger.info('Session collected & encrypted', { origin, sizeBytes, components: results.length, large: sizeBytes > LARGE_WARN_BYTES });
-  send(port, { type: 'collected', pkg, code, results, unsupported: NON_TRANSFERABLE, sizeBytes });
+  const { pkg, code } = await encryptPayload(payload, TRANSFER_TTL_MS, requireCode ? 'code' : 'embedded');
+  logger.info('Session collected & encrypted', { origin, keyMode: pkg.keyMode, sizeBytes, components: results.length, large: sizeBytes > LARGE_WARN_BYTES });
+  const { ciphertext, ...header } = pkg;
+  for (let i = 0; i < ciphertext.length; i += CIPHERTEXT_CHUNK_CHARS) {
+    const data = ciphertext.slice(i, i + CIPHERTEXT_CHUNK_CHARS);
+    if (!send(port, { type: 'ciphertextChunk', data })) return; // popup is gone; nobody to tell
+  }
+  if (!send(port, { type: 'collected', pkg: header, code, results, unsupported: NON_TRANSFERABLE, sizeBytes })) {
+    send(port, { type: 'error', message: 'The session was collected but could not be handed to the window. Please try again.' });
+  }
 }
 
 // ---------------------------------------------------------------- inspect
 function parsePackage(text: string): EncryptedPackage {
   const pkg = JSON.parse(text) as EncryptedPackage;
-  if (pkg.format !== PACKAGE_FORMAT) throw new Error('Unrecognized package format.');
+  if (!pkg || pkg.format !== PACKAGE_FORMAT) throw new Error('Unrecognized package format.');
   return pkg;
 }
 
@@ -203,6 +213,11 @@ function summarize(payload: SessionPayload, pkg: EncryptedPackage): PayloadSumma
 async function handleInspect(port: chrome.runtime.Port, req: Extract<OpRequest, { type: 'inspect' }>) {
   try {
     const pkg = parsePackage(req.packageText);
+    checkPackage(pkg); // format, version, expiry, lifetime: before anything is decrypted
+    if (packageNeedsCode(pkg) && !req.code?.trim()) {
+      send(port, { type: 'codeRequired', expiresAt: pkg.expiresAt, origin: pkg.origin });
+      return;
+    }
     const payload = await decryptPayload(pkg, req.code);
     send(port, { type: 'inspected', summary: summarize(payload, pkg) });
   } catch (e) {
@@ -241,6 +256,11 @@ async function handleRestore(port: chrome.runtime.Port, req: Extract<OpRequest, 
   let pkg: EncryptedPackage;
   try {
     pkg = parsePackage(req.packageText);
+    checkPackage(pkg);
+    if (packageNeedsCode(pkg) && !req.code?.trim()) {
+      send(port, { type: 'codeRequired', expiresAt: pkg.expiresAt, origin: pkg.origin });
+      return;
+    }
     payload = await decryptPayload(pkg, req.code);
   } catch (e) {
     send(port, { type: 'error', message: (e as Error).message || 'Could not read package.' });
@@ -371,11 +391,20 @@ function line(component: TransferComponent, expected: number, actual: number): V
 // ---------------------------------------------------------------- wiring
 chrome.runtime.onConnect.addListener((port) => {
   if (port.name !== PORT_NAME) return;
+  const packageChunks: string[] = [];
   port.onMessage.addListener(async (msg: OpRequest) => {
     try {
+      if (msg.type === 'packageChunk') {
+        packageChunks.push(msg.data);
+        return;
+      }
+      if ((msg.type === 'inspect' || msg.type === 'restore') && packageChunks.length) {
+        msg = { ...msg, packageText: packageChunks.join('') };
+        packageChunks.length = 0;
+      }
       switch (msg.type) {
         case 'detect': await handleDetect(port); break;
-        case 'collect': await handleCollect(port); break;
+        case 'collect': await handleCollect(port, msg.requireCode === true); break;
         case 'inspect': await handleInspect(port, msg); break;
         case 'restore': await handleRestore(port, msg); break;
       }
