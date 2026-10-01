@@ -3,3 +3,5 @@ dist
 *.zip
 .DS_Store
 test-dist
+test-results
+playwright-report
