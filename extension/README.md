@@ -20,8 +20,8 @@ device to another with a near one-click experience.
 **Source browser** → open the site → click the extension → **Transfer Session**.
 The extension collects state, serializes it (structured-clone-aware), encrypts it, and
 gives you one encrypted package to **copy** or **download** (a `.stpkg` file). With
-the *separate transfer code* setting on, it also gives you a one-time **code** to send
-on a different channel.
+the *separate transfer code* setting on, it also gives you a separate **transfer code** (new for each export) to send
+on a different channel. By default there is no code: the key is inside the package, so anyone with the text can restore it until it expires after 5 minutes.
 
 **Destination browser** → click the extension → **Receive Session** → paste the package or
 load the file → **Import Session** (enter the code only if the package asks for it). State is validated, restored into the site's own
@@ -97,7 +97,7 @@ yarn zip        # build + package -> session-transfer-vX.Y.Z.zip
 
 ## Roadmap (post-MVP)
 
-- Transport abstraction implementations (QR pairing, one-time code relay, WebRTC).
+- Transport abstraction implementations (QR pairing, code relay, WebRTC).
 - `test-app/` fixture site + Playwright E2E across cookie/localStorage/IDB apps.
 - Merge-conflict field-level diffing.
 

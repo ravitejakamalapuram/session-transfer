@@ -1,4 +1,4 @@
-import { OpRequest, OpResponse, PORT_NAME } from '../core/messages';
+import { CIPHERTEXT_CHUNK_CHARS, OpRequest, OpResponse, PORT_NAME } from '../core/messages';
 
 /**
  * Opens a fresh port to the service worker, sends one request, and streams every
@@ -12,7 +12,18 @@ export function runOp(request: OpRequest, onMessage: (msg: OpResponse) => void):
       onMessage({ type: 'error', message: 'Background worker disconnected.' });
     }
   });
-  port.postMessage(request);
+  try {
+    if ((request.type === 'inspect' || request.type === 'restore') && request.packageText.length > CIPHERTEXT_CHUNK_CHARS) {
+      for (let i = 0; i < request.packageText.length; i += CIPHERTEXT_CHUNK_CHARS) {
+        port.postMessage({ type: 'packageChunk', data: request.packageText.slice(i, i + CIPHERTEXT_CHUNK_CHARS) });
+      }
+      port.postMessage({ ...request, packageText: '' });
+    } else {
+      port.postMessage(request);
+    }
+  } catch (e) {
+    onMessage({ type: 'error', message: `Could not send the package to the background worker: ${(e as Error).message}` });
+  }
   return () => {
     try {
       port.disconnect();

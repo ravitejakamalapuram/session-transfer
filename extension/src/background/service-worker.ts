@@ -391,8 +391,17 @@ function line(component: TransferComponent, expected: number, actual: number): V
 // ---------------------------------------------------------------- wiring
 chrome.runtime.onConnect.addListener((port) => {
   if (port.name !== PORT_NAME) return;
+  const packageChunks: string[] = [];
   port.onMessage.addListener(async (msg: OpRequest) => {
     try {
+      if (msg.type === 'packageChunk') {
+        packageChunks.push(msg.data);
+        return;
+      }
+      if ((msg.type === 'inspect' || msg.type === 'restore') && packageChunks.length) {
+        msg = { ...msg, packageText: packageChunks.join('') };
+        packageChunks.length = 0;
+      }
       switch (msg.type) {
         case 'detect': await handleDetect(port); break;
         case 'collect': await handleCollect(port, msg.requireCode === true); break;

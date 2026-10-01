@@ -22,7 +22,7 @@ user-selected website between browser environments.
   (AES-256-GCM) and saved by the user as a file or copied as text. By default
   the key is random for each export and is inside the package; if the user
   turns on "Require a separate transfer code", the key is derived with
-  PBKDF2-SHA256 from a one-time code that is not in the package. The
+  PBKDF2-SHA256 from a transfer code (new for each export) that is not in the package. The
   extension refuses to import a package more than 5 minutes after it was
   made; in the default mode this is a check made by the extension, because
   the key is inside the package. An optional encrypted backup of destination
