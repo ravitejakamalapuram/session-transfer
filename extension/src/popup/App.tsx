@@ -42,6 +42,16 @@ const COLLECT_TIMEOUT_MESSAGE =
 
 const NOTHING_SAVED: Saved = { package: false, code: false };
 
+// "Require a separate transfer code" setting. Per profile (storage.local), absent = OFF.
+const SETTING_KEY = 'settings.requireTransferCode';
+async function loadRequireCode(): Promise<boolean> {
+  try {
+    return (await chrome.storage.local.get(SETTING_KEY))[SETTING_KEY] === true;
+  } catch {
+    return false;
+  }
+}
+
 const LOGO = chrome.runtime.getURL('icons/icon48.png');
 const FEEDBACK_URL = 'https://chromewebstore.google.com/detail/fnfmlchbfofjdfeibgdkcibfjjlfcefc/reviews';
 
@@ -88,8 +98,16 @@ export default function App() {
   const [copied, setCopied] = useState<'code' | 'package' | null>(null);
   const [saved, setSaved] = useState<Saved>(NOTHING_SAVED);
   const [guard, setGuard] = useState(false);
+  const [requireCode, setRequireCode] = useState(false);
+  const [codeNeeded, setCodeNeeded] = useState(false);
+  const savedRef = useRef<Saved>(NOTHING_SAVED);
+  savedRef.current = saved;
 
-  const [packageText, setPackageText] = useState('');
+  const [packageText, setPackageTextRaw] = useState('');
+  const setPackageText = (v: string) => {
+    setPackageTextRaw(v);
+    setCodeNeeded(false);
+  };
   const [code, setCode] = useState('');
   const [fileName, setFileName] = useState('');
 
@@ -109,8 +127,9 @@ export default function App() {
   useEffect(() => {
     let stop: (() => void) | undefined;
     let cancelled = false;
-    Promise.all([loadDraft(), IS_RECEIVE_TAB ? null : loadReadyResult()]).then(([draft, ready]) => {
+    Promise.all([loadDraft(), IS_RECEIVE_TAB ? null : loadReadyResult(), loadRequireCode()]).then(([draft, ready, req]) => {
       if (cancelled) return;
+      setRequireCode(req);
       if (ready) {
         setCollected(ready.collected);
         setSaved(ready.saved);
@@ -174,7 +193,7 @@ export default function App() {
       toError(message, startCollect);
     };
     timer = setTimeout(() => fail(COLLECT_TIMEOUT_MESSAGE), COLLECT_TIMEOUT_MS);
-    cleanup.current = runOp({ type: 'collect' }, (msg: OpResponse) => {
+    cleanup.current = runOp({ type: 'collect', requireCode }, (msg: OpResponse) => {
       if (msg.type === 'progress') {
         setProgress((p) => ({ ...p, [msg.component]: { status: msg.status, itemCount: msg.itemCount } }));
       } else if (msg.type === 'ciphertextChunk') {
@@ -195,16 +214,19 @@ export default function App() {
         fail(msg.message);
       }
     });
-  }, []);
+  }, [requireCode]);
 
   // ---------------------------------------------------------------- inspect
   const startInspect = useCallback(() => {
     setView('inspecting');
     cleanup.current?.();
-    cleanup.current = runOp({ type: 'inspect', packageText, code }, (msg) => {
+    cleanup.current = runOp({ type: 'inspect', packageText, code: code.trim() || undefined }, (msg) => {
       if (msg.type === 'inspected') {
         setSummary(msg.summary);
         setView('inspect-ready');
+      } else if (msg.type === 'codeRequired') {
+        setCodeNeeded(true);
+        setView('receive');
       } else if (msg.type === 'error') {
         toError(msg.message);
       }
@@ -218,7 +240,7 @@ export default function App() {
       setView('restoring');
       cleanup.current?.();
       cleanup.current = runOp(
-        { type: 'restore', packageText, code, ...restoreOpts.current },
+        { type: 'restore', packageText, code: code.trim() || undefined, ...restoreOpts.current },
         (msg) => {
           if (msg.type === 'originMismatch') {
             setMismatch({ packageOrigin: msg.packageOrigin, destOrigin: msg.destOrigin });
@@ -226,6 +248,9 @@ export default function App() {
           } else if (msg.type === 'conflict') {
             setConflict({ destOrigin: msg.destOrigin, counts: msg.counts });
             setView('conflict');
+          } else if (msg.type === 'codeRequired') {
+            setCodeNeeded(true);
+            setView('receive');
           } else if (msg.type === 'restored') {
             setReport({ report: msg.report, backedUp: msg.backedUp });
             setView('restored');
@@ -255,10 +280,10 @@ export default function App() {
 
   const copy = async (what: 'code' | 'package') => {
     if (!collected) return;
-    const text = what === 'code' ? collected.code : JSON.stringify(collected.pkg);
+    const text = what === 'code' ? collected.code ?? '' : JSON.stringify(collected.pkg);
     const ok = await navigator.clipboard.writeText(text).then(() => true, () => false);
     if (!ok) return;
-    setSaved((s) => ({ ...s, [what]: true }));
+    setSaved((s) => ({ ...s, [what]: true, copied: true }));
     setCopied(what);
     setTimeout(() => setCopied(null), 1500);
   };
@@ -278,7 +303,14 @@ export default function App() {
     window.close();
   };
 
+  // Done overwrites the clipboard (we cannot read it to check it still holds our text; that
+  // needs clipboardRead). Needs a user gesture, so it is best-effort when the popup timer fires.
+  const clearClipboard = () => {
+    if (savedRef.current.copied) navigator.clipboard.writeText('').catch(() => undefined);
+  };
+
   const finishTransfer = () => {
+    clearClipboard();
     clearReadyResult();
     setCollected(null);
     setSaved(NOTHING_SAVED);
@@ -293,6 +325,7 @@ export default function App() {
   };
 
   const onExpired = useCallback(() => {
+    if (savedRef.current.copied) navigator.clipboard.writeText('').catch(() => undefined);
     clearReadyResult();
   }, []);
 
@@ -328,6 +361,11 @@ export default function App() {
         {view === 'home' && detect && (
           <Home
             detect={detect}
+            requireCode={requireCode}
+            onRequireCode={(v) => {
+              setRequireCode(v);
+              chrome.storage.local.set({ [SETTING_KEY]: v }).catch(() => undefined);
+            }}
             collecting={collecting}
             progress={progress}
             onTransfer={startCollect}
@@ -365,6 +403,7 @@ export default function App() {
             setPackageText={setPackageText}
             code={code}
             setCode={setCode}
+            codeNeeded={codeNeeded}
             fileName={fileName}
             onFile={onFile}
             onOpenTab={IS_RECEIVE_TAB ? undefined : openReceiveTab}
@@ -458,12 +497,16 @@ function Loading({ label }: { label?: string }) {
 
 function Home({
   detect,
+  requireCode,
+  onRequireCode,
   collecting,
   progress,
   onTransfer,
   onReceive,
 }: {
   detect: DetectInfo;
+  requireCode: boolean;
+  onRequireCode: (v: boolean) => void;
   collecting: boolean;
   progress: ProgressMap;
   onTransfer: () => void;
@@ -528,9 +571,21 @@ function Home({
         </div>
       ) : (
         <div className="hint" data-testid="transfer-hint">
-          Creates 2 things: an encrypted file and a one-time code. You need both on the other browser.
+          {requireCode
+            ? 'Creates 2 things: an encrypted file and a one-time code. You need both on the other browser.'
+            : 'Creates one encrypted package to copy or download. The key is inside it, so treat it like a password.'}
         </div>
       )}
+      <label className="check-row" data-testid="require-code-toggle">
+        <input
+          type="checkbox"
+          checked={requireCode}
+          disabled={collecting}
+          onChange={(e) => onRequireCode(e.target.checked)}
+          data-testid="require-code-checkbox"
+        />
+        Require a separate transfer code (more secure)
+      </label>
       <Button testid="receive-session-button" variant="ghost" onClick={onReceive} disabled={collecting}>
         Receive Session
       </Button>
@@ -553,6 +608,7 @@ function Receive({
   setPackageText,
   code,
   setCode,
+  codeNeeded,
   fileName,
   onFile,
   onOpenTab,
@@ -563,6 +619,8 @@ function Receive({
   setPackageText: (v: string) => void;
   code: string;
   setCode: (v: string) => void;
+  /** The package asked for a transfer code (code mode / older packages). */
+  codeNeeded: boolean;
   fileName: string;
   onFile: (e: React.ChangeEvent<HTMLInputElement>) => void;
   /** Set in the popup: file loading moves to a full tab, where the picker can't close it. */
@@ -572,14 +630,13 @@ function Receive({
 }) {
   const hasPackage = packageText.trim().length > 20;
   const hasCode = code.trim().length >= 8;
-  const ready = hasPackage && hasCode;
-  const missing = !hasPackage && !hasCode
-    ? 'Add the encrypted package and the transfer code to continue.'
-    : !hasPackage
-      ? 'Add the encrypted package (load the .stpkg file or paste it above). The code alone can’t decrypt anything.'
-      : !hasCode
-        ? 'Enter the transfer code from the sending device.'
-        : '';
+  const showCode = codeNeeded || hasCode;
+  const ready = hasPackage && (!codeNeeded || hasCode);
+  const missing = !hasPackage
+    ? 'Add the encrypted package: load the .stpkg file or paste the text above.'
+    : codeNeeded && !hasCode
+      ? 'This package needs a transfer code. Enter the code from the sending device.'
+      : '';
 
   // Route pasted content to the right field: people often paste the code into the
   // package box, or the package into the code box.
@@ -597,7 +654,7 @@ function Receive({
       <div className="section-title">Receive session</div>
 
       <div className="section-title" data-testid="receive-step-package">
-        ① Encrypted package {hasPackage && <span className="step-check">✓</span>}
+        Encrypted package {hasPackage && <span className="step-check">✓</span>}
       </div>
       {onOpenTab ? (
         <button className="btn ghost" onClick={onOpenTab} data-testid="load-file-label">
@@ -619,18 +676,20 @@ function Receive({
         data-testid="package-textarea"
       />
 
-      <div className="gap-sm">
-        <div className="section-title" data-testid="receive-step-code">
-          ② Transfer code {hasCode && <span className="step-check">✓</span>}
+      {showCode && (
+        <div className="gap-sm">
+          <div className="section-title" data-testid="receive-step-code">
+            ② Transfer code {hasCode && <span className="step-check">✓</span>}
+          </div>
+          <input
+            className="input code-input"
+            placeholder="ABC7-K9P2-WXYZ"
+            value={code}
+            onChange={(e) => onCodeChange(e.target.value)}
+            data-testid="code-input"
+          />
         </div>
-        <input
-          className="input code-input"
-          placeholder="ABC7-K9P2-WXYZ"
-          value={code}
-          onChange={(e) => onCodeChange(e.target.value)}
-          data-testid="code-input"
-        />
-      </div>
+      )}
 
       <div className="spacer" />
       {missing && (

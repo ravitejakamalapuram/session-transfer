@@ -10,7 +10,7 @@ const BACKUP_TTL_MS = 30 * 60 * 1000; // 30 minutes
 
 interface StoredBackup {
   pkg: unknown;
-  code: string;
+  code: string | null;
   origin: string;
   createdAt: number;
   expiresAt: number;
@@ -29,7 +29,7 @@ export async function purgeExpiredBackups(): Promise<void> {
 /** Encrypts + stores a backup of the given destination payload. */
 export async function createBackup(payload: SessionPayload): Promise<void> {
   await purgeExpiredBackups();
-  const { pkg, code } = await encryptPayload(payload, BACKUP_TTL_MS);
+  const { pkg, code } = await encryptPayload(payload, BACKUP_TTL_MS, 'code');
   const key = `${BACKUP_PREFIX}${payload.source.origin}:${Date.now()}`;
   const record: StoredBackup = {
     pkg,

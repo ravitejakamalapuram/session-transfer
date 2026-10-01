@@ -26,7 +26,7 @@ function fakeSession() {
 
 const NOW = 1_800_000_000_000;
 
-function collected(expiresAt = Date.now() + 5 * 60_000): Collected {
+function collected(expiresAt = Date.now() + 5 * 60_000, code: string | null = 'ABC7-K9P2-WXYZ'): Collected {
   return {
     pkg: {
       origin: 'https://github.com',
@@ -34,7 +34,7 @@ function collected(expiresAt = Date.now() + 5 * 60_000): Collected {
       createdAt: NOW,
       ciphertext: 'CIPHERTEXT',
     } as unknown as Collected['pkg'],
-    code: 'ABC7-K9P2-WXYZ',
+    code,
     results: [],
     unsupported: [],
     sizeBytes: 43_008,
@@ -43,10 +43,10 @@ function collected(expiresAt = Date.now() + 5 * 60_000): Collected {
 
 const noop = () => undefined;
 
-function renderReady(saved: Saved, opts: { guard?: boolean; expiresAt?: number } = {}) {
+function renderReady(saved: Saved, opts: { guard?: boolean; expiresAt?: number; code?: string | null } = {}) {
   return renderToStaticMarkup(
     <Ready
-      collected={collected(opts.expiresAt)}
+      collected={collected(opts.expiresAt, opts.code)}
       saved={saved}
       guard={opts.guard ?? false}
       showDetails={false}
@@ -107,6 +107,38 @@ describe('Ready screen states', () => {
     const html = renderReady({ package: false, code: false }, { expiresAt: Date.now() - 1 });
     assert.ok(html.includes('Expired. Start a new transfer.'));
     assert.match(html, /disabled="" data-testid="copy-code-button"/);
+  });
+});
+
+describe('Ready screen, default mode (key inside the package, no code)', () => {
+  const html = (saved: Saved = { package: false, code: false }) => renderReady(saved, { code: null });
+
+  it('is one step: Copy and Download file, no code, no BOTH warning', () => {
+    const h = html();
+    assert.ok(h.includes('Session ready'));
+    assert.ok(!h.includes('transfer-code'));
+    assert.ok(!h.includes('Transfer code'));
+    assert.ok(!h.includes('BOTH'));
+    const buttons = [...h.matchAll(/data-testid="([^"]+-button)"/g)].map((m) => m[1]).sort();
+    assert.deepEqual(buttons, ['copy-package-button', 'download-package-button', 'transfer-done-button']);
+  });
+
+  it('always shows the holder warning with an expiry time', () => {
+    const h = html();
+    assert.match(h, /data-testid="embedded-warning"/);
+    assert.match(h, /Anyone with this text can restore your session until \d\d?:\d\d/);
+    assert.ok(h.includes('Delete the downloaded file after you import it.'));
+  });
+
+  it('Done says it clears the clipboard only after something was copied', () => {
+    assert.ok(html().includes('>Done<'));
+    assert.ok(html({ package: true, code: false, copied: true }).includes('Done (clears clipboard)'));
+  });
+
+  it('code mode still shows the two-step screen', () => {
+    const h = renderReady({ package: false, code: false });
+    assert.ok(h.includes('② Transfer code'));
+    assert.ok(!h.includes('embedded-warning'));
   });
 });
 

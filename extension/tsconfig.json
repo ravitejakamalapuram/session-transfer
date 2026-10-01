@@ -18,5 +18,5 @@
     "types": ["chrome", "vite/client"]
   },
   "include": ["src", "manifest.config.ts", "vite.config.ts", "vite.test.config.ts"],
-  "exclude": ["src/**/*.test.tsx"]
+  "exclude": ["src/**/*.test.tsx", "src/**/*.test.ts"]
 }

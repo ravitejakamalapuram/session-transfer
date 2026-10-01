@@ -8,7 +8,8 @@ const FOUNDER = 'ls=31&ss=26&idb=283&cache=15';
 // package is ~112 MB of base64, above the 64 MiB chrome.runtime.Port message limit.
 const LARGE = 'ls=31&ss=26&idb=300&idbkb=200&cache=15&cachekb=100';
 
-const READY = (p: Page) => p.getByText('Ready to transfer', { exact: true });
+// The Ready screen title differs by mode ("Session ready" by default); Done is on both.
+const READY = (p: Page) => p.getByTestId('transfer-done-button');
 const ERROR = (p: Page) => p.getByTestId('error-message');
 
 async function send(p: Page) {

@@ -1,0 +1,17 @@
+{
+  "code": "ABC7-K9P2-WXYZ",
+  "pkg": {
+    "format": "browser-session-transfer",
+    "version": 1,
+    "alg": "AES-256-GCM",
+    "kdf": "PBKDF2-SHA256",
+    "iterations": 210000,
+    "salt": "AQIDBAUGBwgJCgsMDQ4PEA==",
+    "iv": "ZWZnaGlqa2xtbm9w",
+    "createdAt": 1700000000000,
+    "expiresAt": 1700000300000,
+    "transferId": "0123456789abcdef0123456789abcdef",
+    "origin": "https://example.test",
+    "ciphertext": "dxmFGFLAgbcDCWI/MXyNTU532IMMET3CFRZT3B7CID43xy5lF1noK2DTZa+fWJ7Fnw+r9iH8Vnr2qiCypbAXKb7IJqC7ZhCo+HHpT5vo5pR2I47QuDa0O5pICKHa2XKVGZEHce+5UZBtiYiTX/9a5IPJueL1N0RRpo7VxHaOCdhvqGbV+CIFPKGVfOMKboVzzDgbX+78VVKylgN3ddtfBCKppZjxOBfICAX5Kl7lJSSe6LEloTXQSXItqyoU7WC7xZeJ9ptpGmgczDJYbkAO7sVNkaBZmzLpBcwUjRy+4XeJ8x9ygdDiR42IKj+vi9z0gp5HoHLaMA7UBIR9TediVY8BMFVdZa9OijPunufnCUexqP+sJwbQjweYywWoZkbNa6BAom39YJ9VjlijgGR2qfYEomAVGDVa3ycm3qEQ0A8dVEltF9cIb4paGpbgWy0j36gOJRvI3KklnV3qodJkL1I9pgb4PmmZyAqiy/tTFtHUT+kbYiWfDPyTEmNdPGYTWyaBzXGa4gLrA1PV0eZePymkvq3+YXATNkG9KVPIGS6/zAAHzotpIqGV2Y+qF9qEqYupOpGHXmOWcgNdyxzTA8KNt6eXTDhkWPAJU8/IXbKVSWVDFIQHShzmUQAGU0xy8wHseuXBl4ck688hdhihWkkrjCSY"
+  }
+}

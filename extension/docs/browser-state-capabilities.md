@@ -20,7 +20,7 @@ reading before trusting a transfer.
 | Active JS memory | ✗    | ✗     | In-process                              | ✗             | ✗             | —                  | Ephemeral. |
 
 ¹ Cross-device works because the encrypted package is a portable file; move it by
-any channel (the code is required to decrypt).
+any channel (if the separate transfer code setting is on, the code is also required to decrypt).
 
 ## Why these API choices
 

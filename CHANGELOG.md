@@ -7,6 +7,18 @@ manifest.
 ## [Unreleased]
 
 ### Changed
+- **The transfer code is now optional and off by default.** Packages are still
+  always AES-256-GCM encrypted, but by default the key is inside the copied
+  text or downloaded file: one step, no second channel. Anyone who has that
+  text can restore your session until it expires (5 minutes, checked by the
+  extension) and can still decrypt it afterwards, so do not share it and delete
+  the file after you import it. Turn on **Require a separate transfer code
+  (more secure)** on the home screen for the previous two-channel behaviour.
+  Done clears the clipboard if you copied. Packages are now version 2; version
+  1 packages still import. **Update the extension in both browsers**: an older
+  receiver cannot read a default-mode package (APP-315).
+- Receive no longer asks for a code unless the package needs one. Expired or
+  too-long-lived packages are refused before anything is decrypted.
 - The "Ready to transfer" screen shows the encrypted package and the transfer
   code as numbered steps ① and ② of equal weight, says you need both, ticks
   each one once it is downloaded or copied, and counts down to expiry. Done
