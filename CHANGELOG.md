@@ -6,6 +6,17 @@ manifest.
 
 ## [Unreleased]
 
+### Changed
+- The "Ready to transfer" screen shows the encrypted package and the transfer
+  code as numbered steps ① and ② of equal weight, says you need both, ticks
+  each one once it is downloaded or copied, and counts down to expiry. Done
+  warns before you leave without the package (APP-299).
+- Closing the popup no longer loses a finished transfer: it reopens on the
+  Ready screen until Done or expiry (5 min), held in memory only (APP-299).
+- The home screen says Transfer creates two things, the receive screen
+  numbers and ticks both fields, and the store caption now reads "Load the
+  package + enter the code" (APP-299).
+
 ### Fixed
 - Extension icon (16/32/48/128 px) no longer has white square corners: the
   area outside the rounded tile is now transparent, so the icon blends into

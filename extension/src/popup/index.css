@@ -135,20 +135,6 @@ html, body {
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-.code-display {
-  background: var(--code-bg);
-  border: 1px solid var(--border-strong);
-  border-radius: 12px;
-  padding: 18px;
-  text-align: center;
-  box-shadow: 0 0 24px rgba(16,185,129,0.12) inset;
-}
-.code-display .code {
-  font-family: var(--mono); font-size: 28px; font-weight: 800; letter-spacing: 0.14em; color: var(--accent-2);
-  user-select: all;
-}
-.code-display .label { font-family: var(--mono); font-size: 10px; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 8px; }
-
 .input, .textarea {
   width: 100%; background: var(--code-bg); border: 1px solid var(--border);
   border-radius: 10px; padding: 12px; color: var(--text); font-family: var(--mono); font-size: 13px;
@@ -206,3 +192,22 @@ html, body {
 .details-grid .k { color: var(--text-2); }
 .details-grid .v { color: var(--text); text-align: right; }
 .details-grid .muted { color: var(--text-3); }
+
+/* Ready screen: package (①) and code (②) are equal-weight steps (APP-299). */
+.step {
+  border: 1px solid var(--border-strong); background: var(--surface); border-radius: 12px;
+  padding: 12px; display: flex; flex-direction: column; gap: 10px;
+}
+.step.done { border-color: var(--accent); background: rgba(16,185,129,0.06); }
+.step-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; font-family: var(--mono); }
+.step-title { font-size: 13px; font-weight: 700; }
+.step-what { font-size: 10px; font-weight: 400; color: var(--text-3); margin-left: 4px; }
+.step-status { font-size: 11px; color: var(--text-3); white-space: nowrap; }
+.step.done .step-status, .step-check { color: var(--accent-2); }
+.step-actions { display: flex; gap: 8px; }
+.step-actions .btn { padding: 10px 12px; }
+.step-code {
+  font-family: var(--mono); font-size: 22px; font-weight: 800; letter-spacing: 0.12em; color: var(--accent-2);
+  text-align: center; background: var(--code-bg); border-radius: 8px; padding: 8px; user-select: all;
+}
+.hint.expired { color: var(--rose); }

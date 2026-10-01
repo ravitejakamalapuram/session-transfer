@@ -1,7 +1,8 @@
 # yaml-language-server: $schema=https://raw.githubusercontent.com/ravitejakamalapuram/release-platform/main/schema/release.schema.json
 # Release contract for ravitejakamalapuram/release-platform@v2 (keyless Chrome Web Store publishing).
-# No unit tests yet; `npm run build` type-checks (tsc --noEmit) before the Vite build.
+# `npm run build` type-checks (tsc --noEmit) before the Vite build. `test` runs the popup unit tests (node:test).
 app: session-transfer
+test: cd extension && npm ci && npm test
 targets:
   - type: chrome
     item_id: fnfmlchbfofjdfeibgdkcibfjjlfcefc
