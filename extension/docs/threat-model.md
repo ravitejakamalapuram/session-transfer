@@ -18,7 +18,7 @@ Session data is treated as equivalent to passwords/access tokens.
 
 ```
 default (keyMode 'embedded'):  random 32-byte key per export ──▶ AES-256-GCM key  (key is in the package)
-code    (keyMode 'code'):      code (one-time) ──PBKDF2-SHA256(210k, random salt)──▶ AES-256-GCM key
+code    (keyMode 'code'):      transfer code (new per export) ──PBKDF2-SHA256(210k, random salt)──▶ AES-256-GCM key
 payload (JSON) ──AES-256-GCM(iv, AAD = canonical JSON of the header)──▶ ciphertext
 header = { format, version: 2, keyMode, origin, createdAt, expiresAt, transferId }
 package = header + { alg, iv, ciphertext } + { key } (embedded) or { kdf, iterations, salt } (code)
