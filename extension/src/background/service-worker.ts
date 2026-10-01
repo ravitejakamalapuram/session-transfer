@@ -6,7 +6,7 @@ import { pageCollect, pageDetect, pageRestore } from './injected';
 import { collectCookies, countCookies, restoreCookies } from './cookie-manager';
 import { getActiveTab, originOf, reloadTab, resolveDestinationTab } from './tab-utils';
 import { createBackup, purgeExpiredBackups } from './extension-storage';
-import { decryptPayload, encryptPayload } from '../core/crypto';
+import { checkPackage, decryptPayload, encryptPayload, packageNeedsCode } from '../core/crypto';
 import { logger } from '../core/logger';
 import { CIPHERTEXT_CHUNK_CHARS, DetectInfo, OpRequest, OpResponse, PORT_NAME } from '../core/messages';
 import {
@@ -101,7 +101,7 @@ function pageResultStatus(comp: TransferComponent, raw: any): TransferComponentR
   return { component: comp, status: raw.status, itemCount: count, error: raw.error };
 }
 
-async function handleCollect(port: chrome.runtime.Port) {
+async function handleCollect(port: chrome.runtime.Port, requireCode: boolean) {
   const tab = await getActiveTab();
   const origin = originOf(tab?.url);
   if (!tab || !origin || tab.id == null) {
@@ -172,8 +172,8 @@ async function handleCollect(port: chrome.runtime.Port) {
     return;
   }
 
-  const { pkg, code } = await encryptPayload(payload, TRANSFER_TTL_MS);
-  logger.info('Session collected & encrypted', { origin, sizeBytes, components: results.length, large: sizeBytes > LARGE_WARN_BYTES });
+  const { pkg, code } = await encryptPayload(payload, TRANSFER_TTL_MS, requireCode ? 'code' : 'embedded');
+  logger.info('Session collected & encrypted', { origin, keyMode: pkg.keyMode, sizeBytes, components: results.length, large: sizeBytes > LARGE_WARN_BYTES });
   const { ciphertext, ...header } = pkg;
   for (let i = 0; i < ciphertext.length; i += CIPHERTEXT_CHUNK_CHARS) {
     const data = ciphertext.slice(i, i + CIPHERTEXT_CHUNK_CHARS);
@@ -187,7 +187,7 @@ async function handleCollect(port: chrome.runtime.Port) {
 // ---------------------------------------------------------------- inspect
 function parsePackage(text: string): EncryptedPackage {
   const pkg = JSON.parse(text) as EncryptedPackage;
-  if (pkg.format !== PACKAGE_FORMAT) throw new Error('Unrecognized package format.');
+  if (!pkg || pkg.format !== PACKAGE_FORMAT) throw new Error('Unrecognized package format.');
   return pkg;
 }
 
@@ -213,6 +213,11 @@ function summarize(payload: SessionPayload, pkg: EncryptedPackage): PayloadSumma
 async function handleInspect(port: chrome.runtime.Port, req: Extract<OpRequest, { type: 'inspect' }>) {
   try {
     const pkg = parsePackage(req.packageText);
+    checkPackage(pkg); // format, version, expiry, lifetime: before anything is decrypted
+    if (packageNeedsCode(pkg) && !req.code?.trim()) {
+      send(port, { type: 'codeRequired', expiresAt: pkg.expiresAt, origin: pkg.origin });
+      return;
+    }
     const payload = await decryptPayload(pkg, req.code);
     send(port, { type: 'inspected', summary: summarize(payload, pkg) });
   } catch (e) {
@@ -251,6 +256,11 @@ async function handleRestore(port: chrome.runtime.Port, req: Extract<OpRequest, 
   let pkg: EncryptedPackage;
   try {
     pkg = parsePackage(req.packageText);
+    checkPackage(pkg);
+    if (packageNeedsCode(pkg) && !req.code?.trim()) {
+      send(port, { type: 'codeRequired', expiresAt: pkg.expiresAt, origin: pkg.origin });
+      return;
+    }
     payload = await decryptPayload(pkg, req.code);
   } catch (e) {
     send(port, { type: 'error', message: (e as Error).message || 'Could not read package.' });
@@ -385,7 +395,7 @@ chrome.runtime.onConnect.addListener((port) => {
     try {
       switch (msg.type) {
         case 'detect': await handleDetect(port); break;
-        case 'collect': await handleCollect(port); break;
+        case 'collect': await handleCollect(port, msg.requireCode === true); break;
         case 'inspect': await handleInspect(port, msg); break;
         case 'restore': await handleRestore(port, msg); break;
       }

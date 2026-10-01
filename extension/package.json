@@ -10,7 +10,7 @@
     "build:nocheck": "vite build",
     "zip": "vite build && node scripts/zip.mjs",
     "preview": "vite preview",
-    "test": "vite build --config vite.test.config.ts && node --test test-dist/ready.test.js",
+    "test": "vite build --config vite.test.config.ts && node --test test-dist/*.test.js",
     "test:e2e": "vite build --config vite.config.ts && playwright test"
   },
   "dependencies": {

@@ -16,41 +16,59 @@ export interface Harness {
   openPopup(query?: string): Promise<{ site: Page; popup: Page; popupLogs: string[] }>;
 }
 
-export const test = base.extend<{ h: Harness }>({
+/** Launches Chromium with the built extension in a fresh profile, against the given fixture site. */
+async function launch(fixture: Fixture): Promise<{ h: Harness; dispose(): Promise<void> }> {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'st-e2e-'));
+  const context = await chromium.launchPersistentContext(dir, {
+    channel: 'chromium',
+    headless: true,
+    args: [`--disable-extensions-except=${EXT}`, `--load-extension=${EXT}`],
+  });
+  const sw = context.serviceWorkers()[0] ?? (await context.waitForEvent('serviceworker'));
+  const swLogs: string[] = [];
+  sw.on('console', (m) => swLogs.push(`[sw] ${m.type()}: ${m.text()}`));
+  const extId = new URL(sw.url()).host;
+  // Copy / "Done clears the clipboard" use navigator.clipboard from the popup page.
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']); // extension origins cannot be named here
+  const h: Harness = {
+    context, extId, sw, swLogs, fixture,
+    async openPopup(query = '') {
+      const site = await context.newPage();
+      await site.goto(`${fixture.origin}/?${query}`);
+      await site.waitForFunction(() => document.title === 'ready', null, { timeout: 120_000 });
+      const popup = await context.newPage();
+      const popupLogs: string[] = [];
+      popup.on('console', (m) => popupLogs.push(`[popup] ${m.type()}: ${m.text()}`));
+      popup.on('pageerror', (e) => popupLogs.push(`[popup] pageerror: ${e.message}`));
+      await popup.goto(`chrome-extension://${extId}/index.html`);
+      // The popup page is itself a tab here; make the site the active tab and reload so detect sees it.
+      await site.bringToFront();
+      await popup.reload();
+      return { site, popup, popupLogs };
+    },
+  };
+  return {
+    h,
+    dispose: async () => {
+      await context.close();
+      fs.rmSync(dir, { recursive: true, force: true });
+    },
+  };
+}
+
+export const test = base.extend<{ h: Harness; b: Harness }>({
   h: async ({}, use) => {
     const fixture = await startFixture();
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'st-e2e-'));
-    const context = await chromium.launchPersistentContext(dir, {
-      channel: 'chromium',
-      headless: true,
-      args: [`--disable-extensions-except=${EXT}`, `--load-extension=${EXT}`],
-    });
-    let sw = context.serviceWorkers()[0] ?? (await context.waitForEvent('serviceworker'));
-    const swLogs: string[] = [];
-    const hookSw = (w: Worker) => w.on('console', (m) => swLogs.push(`[sw] ${m.type()}: ${m.text()}`));
-    hookSw(sw);
-    const extId = new URL(sw.url()).host;
-    const h: Harness = {
-      context, extId, sw, swLogs, fixture,
-      async openPopup(query = '') {
-        const site = await context.newPage();
-        await site.goto(`${fixture.origin}/?${query}`);
-        await site.waitForFunction(() => document.title === 'ready', null, { timeout: 120_000 });
-        const popup = await context.newPage();
-        const popupLogs: string[] = [];
-        popup.on('console', (m) => popupLogs.push(`[popup] ${m.type()}: ${m.text()}`));
-        popup.on('pageerror', (e) => popupLogs.push(`[popup] pageerror: ${e.message}`));
-        await popup.goto(`chrome-extension://${extId}/index.html`);
-        // The popup page is itself a tab here; make the site the active tab and reload so detect sees it.
-        await site.bringToFront();
-        await popup.reload();
-        return { site, popup, popupLogs };
-      },
-    };
+    const { h, dispose } = await launch(fixture);
     await use(h);
-    await context.close();
+    await dispose();
     await fixture.close();
-    fs.rmSync(dir, { recursive: true, force: true });
+  },
+  // A second browser profile (separate user-data dir) on the same fixture origin: the receiver.
+  b: async ({ h }, use) => {
+    const { h: b, dispose } = await launch(h.fixture);
+    await use(b);
+    await dispose();
   },
 });
 export { expect } from '@playwright/test';

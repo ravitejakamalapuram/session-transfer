@@ -1,7 +1,7 @@
 # product-facts.yaml: Session Transfer (Chrome extension)
 # Every fact below was checked against extension/ code, not only against listing copy.
 # Cite as [fact:<key>] in facts-used.md. If a fact is not here, it is not a checked claim.
-# Line numbers are valid at the pinned sha only: re-check them when the sha moves.
+# Code references are symbol names (line numbers drift); doc references (README.md:N etc.) are valid at the pinned sha only: re-check them when the sha moves.
 product: session-transfer
 pinned_sha: 98f473e4f9cd9d8f1afe7b34c31cda7f06fc0958   # origin/main when written (extension v1.2.1 in package.json)
 checked: 2026-10-01
@@ -18,42 +18,49 @@ facts:
     claim: "Moves an authenticated website session (cookies, localStorage, sessionStorage, IndexedDB, Cache Storage) between Chrome profiles, browsers or devices."
     status: safe
     sources: ["README.md:3-5", "CHROMEWEBSTORE.md:26,30"]
-    code: ["extension/src/core/types.ts:173-181 (what is NOT moved)", "extension/manifest.config.ts:28-29 (cookies, scripting, tabs, storage; http/https hosts)"]
+    code: ["extension/src/core/types.ts (NON_TRANSFERABLE: what is NOT moved)", "extension/manifest.config.ts (permissions: cookies, scripting, tabs, storage; http/https hosts)"]
     note: "Moves the web session only. It is a user-saved file; the user carries it to the other browser."
 
   encryption:
-    claim: "Packages are encrypted with AES-256-GCM; the key is derived from the transfer code with PBKDF2-SHA256, 210,000 iterations, random 16-byte salt and 12-byte IV."
+    claim: "Packages are always encrypted with AES-256-GCM (random 12-byte IV). Default: a random 32-byte key per export, stored in the package. With the 'Require a separate transfer code' setting ON: the key is derived from the code with PBKDF2-SHA256, 210,000 iterations, random 16-byte salt."
     status: safe
-    sources: ["README.md:9", "PRIVACY.md:22-23", "CHROMEWEBSTORE.md:30,35"]
-    code: ["extension/src/core/crypto.ts:19 (PBKDF2_ITERATIONS = 210_000)", "extension/src/core/crypto.ts:63-65 (PBKDF2 SHA-256 -> AES-GCM 256)", "extension/src/core/crypto.ts:86-87 (salt 16 B, iv 12 B)", "extension/src/core/crypto.ts:1-6 (Web Crypto only, no custom crypto)"]
+    sources: ["README.md:9-13", "PRIVACY.md:21-29", "CHROMEWEBSTORE.md (HOW IT WORKS 2, SECURITY bullet 2)"]
+    code: ["extension/src/core/crypto.ts (encryptPayload: embedded vs code branch; PBKDF2_ITERATIONS = 210_000; KEY_BYTES = 32)", "extension/src/core/crypto.ts (Web Crypto only, no custom crypto)"]
+    note: "Encryption does NOT protect against someone who holds the package in the default mode: the key is inside it. What it gives in the default mode: no plaintext tokens in the clipboard/file for scanners, tamper detection, one crypto path. Say 'encrypted', never 'only you can open it' for the default mode."
+
+  key_mode_default:
+    claim: "Default (setting OFF): the key is inside the copied text / downloaded file, so one step moves the session. The Ready screen warns that anyone with the text can restore the session until the shown time. Setting 'Require a separate transfer code (more secure)' ON gives the two-channel flow: package + a separate code."
+    status: narrow
+    sources: ["CHANGELOG.md [Unreleased]", "extension/docs/threat-model.md #1, #2, #8"]
+    code: ["extension/src/popup/App.tsx (SETTING_KEY 'settings.requireTransferCode', loadRequireCode, require-code-checkbox, collect sends requireCode)", "extension/src/background/service-worker.ts (handleCollect: requireCode ? 'code' : 'embedded')", "extension/src/popup/ready.tsx (embedded-warning vs two-step screen)"]
+    note: "Setting is per browser profile (chrome.storage.local), absent = OFF. In the default mode a leaked copy of the text IS the session: do not say 'a leaked package is useless without the code' for it. Both browsers need the new version: an older receiver cannot read a version 2 default-mode package."
 
   transfer_code:
-    claim: "Each export makes a new random code (12 characters from a 31-letter/digit set, shown as ABCD-EFGH-JKMN). The package cannot be decrypted without it."
+    claim: "Optional (default OFF). When ON, each export makes a new random code (12 characters from a 31-letter/digit set, shown as ABCD-EFGH-JKMN) and the package cannot be decrypted without it. When OFF there is no code."
     status: narrow
-    sources: ["README.md:9,11", "CHROMEWEBSTORE.md:36"]
-    code: ["extension/src/core/crypto.ts:18-33 (generateTransferCode)", "extension/src/core/crypto.ts:123-135 (decrypt needs the code)"]
-    note: "'One-time' means a fresh code per export. The code is NOT single-use: nothing marks a package or code as used, so the same package + code can be imported again until it expires. Do not say 'works only once' or 'self-destructs'."
+    sources: ["README.md:9-13", "CHROMEWEBSTORE.md (HOW IT WORKS 3)"]
+    code: ["extension/src/core/crypto.ts (generateTransferCode; code mode in encryptPayload/decryptPayload)", "extension/src/background/service-worker.ts (handleInspect: codeRequired reply)"]
+    note: "'One-time' would mean a fresh code per export, not single-use: nothing marks a package or code as used, so the same package + code can be imported again until it expires. Do not say 'one-time code' in listing copy, 'works only once' or 'self-destructs'."
 
   package_expiry:
-    claim: "A transfer package expires 5 minutes after export; import refuses an expired package with 'This transfer has expired.'"
+    claim: "The extension refuses to import a package more than 5 minutes after export ('This transfer has expired.'), and refuses a package whose stated lifetime is over 5 min 30 s. Both are checked before anything is decrypted."
     status: narrow
-    sources: ["CHROMEWEBSTORE.md:36 (says 'packages expire after 5 minutes')"]
-    not_in: ["PRIVACY.md (silent on package expiry)", "README.md (silent)"]
-    code: ["extension/src/background/service-worker.ts:27 (TRANSFER_TTL_MS = 5 * 60 * 1000)", "extension/src/background/service-worker.ts:172 (passed to encryptPayload)", "extension/src/core/crypto.ts:108 (expiresAt = now + ttlMs)", "extension/src/core/crypto.ts:124 (decrypt rejects when Date.now() > expiresAt)", "extension/src/popup/App.tsx:500,660 (UI shows 'expires in ...')"]
-    verdict: "CONFIRMED in code. The listing copy is correct."
-    note: "The expiry is a plain app-side check on pkg.expiresAt, which is not part of the AES-GCM authenticated data (only origin is, crypto.ts:94,132). Someone who edits the file's expiresAt can defeat it. So say 'expires after 5 minutes' (app behaviour); do NOT say 'cryptographically expires' or 'cannot be used after 5 minutes'. The privacy policy does not state it; if a video leans on it, ask for a PRIVACY.md line (it is a promise the policy does not make)."
+    sources: ["CHROMEWEBSTORE.md (SECURITY bullet 3)", "PRIVACY.md:21-29", "extension/docs/threat-model.md #8"]
+    code: ["extension/src/background/service-worker.ts (TRANSFER_TTL_MS = 5 * 60 * 1000; passed to encryptPayload)", "extension/src/core/crypto.ts (checkPackage: expiry then lifetime; MAX_PACKAGE_LIFETIME_MS)", "extension/src/popup/ready.tsx + App.tsx (UI shows 'Expires in ...' / 'expires in ...')"]
+    verdict: "CONFIRMED in code."
+    note: "The expiry is an extension-side check in BOTH modes. In the default mode the key is inside the package, so after expiry anyone with the text can still decrypt it with a short script and the cookies work until the site ends the session. In code mode, someone with package + code can do the same. Say 'the extension refuses packages older than 5 minutes'; do NOT say 'cryptographically expires', 'self-destructs' or 'cannot be used after 5 minutes'."
 
   origin_binding:
-    claim: "A package restores only into the website origin it was exported from. The origin is bound as AES-GCM authenticated data, and it is re-checked after decrypt."
+    claim: "A package restores only into the website origin it was exported from. The origin (with expiry and key mode) is bound as AES-GCM authenticated data, and it is re-checked after decrypt."
     status: safe
-    sources: ["README.md:12", "CHROMEWEBSTORE.md:37,61"]
-    code: ["extension/src/core/crypto.ts:94,132 (origin as AAD)", "extension/src/core/crypto.ts:140-141 (payload origin must equal package origin)", "extension/src/background/service-worker.ts:254-258 (asks to confirm when the active tab is a different origin)", "extension/src/background/service-worker.ts:262 (restores into the package origin's tab)"]
+    sources: ["README.md:15", "CHROMEWEBSTORE.md:37,61"]
+    code: ["extension/src/core/crypto.ts (headerAad: origin in AAD; decryptPayload: payload origin must equal package origin)", "extension/src/background/service-worker.ts (handleRestore: originMismatch confirmation; resolveDestinationTab(origin))"]
 
   local_only:
     claim: "No server, no account, no analytics, no tracking. The extension makes no network requests."
     status: safe
-    sources: ["README.md:10", "PRIVACY.md:24-27", "CHROMEWEBSTORE.md:34,76"]
-    code: ["extension/package.json:14-17 (dependencies: react, react-dom only)", "grep over extension/src at 98f473e: no fetch( / XMLHttpRequest / WebSocket / sendBeacon / analytics SDK"]
+    sources: ["README.md:13-14", "PRIVACY.md:30-33", "CHROMEWEBSTORE.md:34,76"]
+    code: ["extension/package.json (dependencies: react, react-dom only)", "grep over extension/src at the pinned sha: no fetch( / XMLHttpRequest / WebSocket / sendBeacon / analytics SDK"]
     note: "Fully local describes the extension. The user saves the package as a file (.stpkg) and moves it; what happens to that file afterwards is outside the extension. Use the policy wording, not 'never leaves your device'."
 
   no_data_collected_by_developer:
@@ -66,41 +73,41 @@ facts:
     claim: "If the destination already has a session, the user chooses Replace, Merge or Cancel (Cancel is the default); nothing is overwritten silently."
     status: safe
     sources: ["CHROMEWEBSTORE.md:38"]
-    code: ["extension/src/core/types.ts:156 (ConflictStrategy)", "extension/src/popup/App.tsx:106 (default 'cancel')", "extension/src/popup/App.tsx:705-707 (option text)", "extension/src/background/service-worker.ts:289-293 (strategy; cancel leaves destination unchanged)"]
+    code: ["extension/src/core/types.ts (ConflictStrategy)", "extension/src/popup/App.tsx (useState strategy default 'cancel'; Conflict options text)", "extension/src/background/service-worker.ts (handleRestore: strategy; cancel leaves destination unchanged)"]
 
   backup:
     claim: "Before a Replace, the user can keep an encrypted backup of the destination state in chrome.storage.local; it auto-expires after 30 minutes."
     status: narrow
-    sources: ["PRIVACY.md:23-24", "CHROMEWEBSTORE.md:38,60,79"]
-    code: ["extension/src/background/extension-storage.ts:9 (BACKUP_TTL_MS = 30 * 60 * 1000)", "extension/src/background/extension-storage.ts:19-27,31 (purged on expiry and before each new backup)", "extension/src/background/service-worker.ts:390 (purge at start-up)", "extension/src/popup/App.tsx:107,732 (checkbox, on by default; label 'auto-expires in 30m')", "extension/src/background/service-worker.ts:295-305 (only when the destination has data; failure is ignored)"]
-    note: "Backup is best-effort and a different thing from the 5-minute package expiry. The backup's decryption code is stored in the same record (extension-storage.ts:36, comment says so). So 'encrypted' is true but it protects against casual reading of the file, not against anyone with access to the browser profile. Do not call the backup 'secure' or 'protected by a code only you know'."
+    sources: ["PRIVACY.md:27-29", "CHROMEWEBSTORE.md:38,60,79"]
+    code: ["extension/src/background/extension-storage.ts (BACKUP_TTL_MS = 30 * 60 * 1000; purgeExpiredBackups on expiry and before each new backup; createBackup uses code mode)", "extension/src/background/service-worker.ts (onInstalled purge; handleRestore backup only when the destination has data, failure ignored)", "extension/src/popup/App.tsx (backup checkbox, on by default; label 'auto-expires in 30m')"]
+    note: "Backup is best-effort and a different thing from the 5-minute package expiry. Backups use code mode. The backup's decryption code is stored in the same record (createBackup in extension-storage.ts, comment says so). So 'encrypted' is true but it protects against casual reading of the file, not against anyone with access to the browser profile. Do not call the backup 'secure' or 'protected by a code only you know'."
 
   not_transferable:
     claim: "Passkeys/WebAuthn, hardware-backed credentials, OS credential stores and TLS-bound session state cannot be transferred; the extension says so in the popup."
     status: safe
-    sources: ["README.md:13", "CHROMEWEBSTORE.md:39"]
-    code: ["extension/src/core/types.ts:173-181 (NON_TRANSFERABLE list)", "extension/src/background/service-worker.ts:163,176 (sent to the popup with the export)", "extension/src/popup/App.tsx:672 ('Not restored (by design): WebAuthn / passkeys, hardware credentials, TLS state.')", "extension/src/popup/App.tsx:776"]
+    sources: ["README.md:16", "CHROMEWEBSTORE.md:39"]
+    code: ["extension/src/core/types.ts (NON_TRANSFERABLE list)", "extension/src/background/service-worker.ts (handleCollect: sent to the popup with the export)", "extension/src/popup/App.tsx (InspectReady and Restored callouts: 'Not restored (by design): WebAuthn / passkeys, hardware credentials, TLS state.')"]
     note: "Nothing says a site will accept the restored session. Sites can bind a session to a device or IP. Do not promise 'you will be logged in'; say 'moves your session'."
 
   verification_report:
     claim: "After a restore the popup shows a verification report and reloads the page."
     status: safe
     sources: ["CHROMEWEBSTORE.md:31", "README.md:7"]
-    code: ["extension/src/popup/App.tsx:747-771 (verification report: Passed or Partial, and whether the page reloaded)"]
+    code: ["extension/src/popup/App.tsx (Restored: verification report, Passed or Partial, and whether the page reloaded)"]
     note: "A report of what was written, not a guarantee that the site accepts it."
 
   size_limit:
     claim: "A session over 100 MB is refused at export; over 20 MB shows a large-size warning."
     status: safe
     sources: []
-    code: ["extension/src/background/service-worker.ts:28-29 (MAX_PACKAGE_BYTES, LARGE_WARN_BYTES)", "extension/src/background/service-worker.ts:166-170 (error message)"]
+    code: ["extension/src/background/service-worker.ts (MAX_PACKAGE_BYTES, LARGE_WARN_BYTES; handleCollect error message)", "extension/src/popup/ready.tsx (Ready: 'Download file is more reliable than Copy' hint above 20 MB)"]
     note: "Not in any listing text. Listed because users will hit it."
 
   permissions:
     claim: "Permissions: cookies, scripting, tabs, storage, plus http/https host access. Injection is on demand from the popup; no content script runs on page load."
     status: safe
-    sources: ["PRIVACY.md:29-37", "CHROMEWEBSTORE.md:55-61"]
-    code: ["extension/manifest.config.ts:28-29", "extension/manifest.config.ts (no content_scripts key; grep confirms)"]
+    sources: ["PRIVACY.md:34-43", "CHROMEWEBSTORE.md:55-61"]
+    code: ["extension/manifest.config.ts (permissions; no content_scripts key; grep confirms)"]
 
   audience:
     claim: "Developers moving sessions between dev/staging/prod profiles; people switching computers or browsers; QA teams reproducing authenticated states."
@@ -116,6 +123,12 @@ do_not_claim:
     why: "No checked source in the repo gives the live status. CHROMEWEBSTORE.md:15 still says 'Pending review' (stale: commit b8c615e records it live on the dashboard on 2026-10-01). Read the live listing before saying it."
   - claim: "Works only once / self-destructing code / single-use package"
     why: "Not enforced; see transfer_code."
+  - claim: "A leaked package is useless without the code / two-channel security (as a general statement)"
+    why: "True only with 'Require a separate transfer code' ON. By default the key is inside the package; see key_mode_default."
+  - claim: "The package self-destructs / cannot be used after 5 minutes / expires cryptographically"
+    why: "The 5-minute limit is a check in the extension. In the default mode the key is inside the package, so a holder can still decrypt it later; see package_expiry."
+  - claim: "One-time transfer code / the code is always required"
+    why: "The code is optional and off by default; see transfer_code."
   - claim: "Never leaves your device / zero-knowledge / unhackable / military-grade"
     why: "The user exports a file and carries it; the policy only says the extension contacts no servers."
   - claim: "Works on every site / keeps you logged in everywhere"
@@ -128,8 +141,8 @@ do_not_claim:
     why: "The code is stored with the backup; see backup."
 
 discrepancies_found:
-  - where: "CHROMEWEBSTORE.md:36 vs PRIVACY.md"
-    detail: "Listing says packages expire after 5 minutes; PRIVACY.md only mentions the 30-minute backup. Code confirms 5 minutes for packages (service-worker.ts:27). Listing is correct; the policy is silent, not contradictory."
+  - where: "store screenshots (extension/store-assets/screenshot-transfer.png, screenshot-receive.png) and store-assets/shots.html"
+    detail: "Still show the old always-required one-time code flow. Captions in store-listing.md were updated; the images and shots.html copy need a re-shoot (not done in APP-319)."
   - where: "CHROMEWEBSTORE.md:15 and :113"
     detail: "Status 'Pending review' / version 1.2.1; the product has moved on (git log: published, v1.2.2 pending review per b8c615e). The listing record is stale. Do not take status or version from this file."
   - where: "CHROMEWEBSTORE.md:57-59 'Sample Evidence' cites assets/service-worker.ts-JeVUT3mP.js:1"
