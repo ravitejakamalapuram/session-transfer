@@ -10,7 +10,8 @@
     "build:nocheck": "vite build",
     "zip": "vite build && node scripts/zip.mjs",
     "preview": "vite preview",
-    "test": "vite build --config vite.test.config.ts && node --test test-dist/ready.test.js"
+    "test": "vite build --config vite.test.config.ts && node --test test-dist/ready.test.js",
+    "test:e2e": "vite build --config vite.config.ts && playwright test"
   },
   "dependencies": {
     "react": "^18.3.1",
@@ -18,6 +19,7 @@
   },
   "devDependencies": {
     "@crxjs/vite-plugin": "^2.0.0",
+    "@playwright/test": "^1.63.0",
     "@types/chrome": "^0.0.270",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",

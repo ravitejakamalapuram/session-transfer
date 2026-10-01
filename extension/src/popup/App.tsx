@@ -23,7 +23,6 @@ import { DetectInfo, OpResponse } from '../core/messages';
 type View =
   | 'loading'
   | 'home'
-  | 'collecting'
   | 'ready'
   | 'receive'
   | 'inspecting'
@@ -35,6 +34,11 @@ type View =
   | 'error';
 
 type ProgressMap = Partial<Record<TransferComponent, { status: TransferStatus; itemCount?: number }>>;
+
+// Large sessions take ~1 minute to encrypt; past this the flow is treated as stuck.
+const COLLECT_TIMEOUT_MS = 3 * 60 * 1000;
+const COLLECT_TIMEOUT_MESSAGE =
+  'Collecting the session took too long and was stopped. The page may hold a very large amount of data. Please try again.';
 
 const NOTHING_SAVED: Saved = { package: false, code: false };
 
@@ -96,6 +100,8 @@ export default function App() {
   const [backup, setBackup] = useState(true);
   const [report, setReport] = useState<{ report: VerificationReport; backedUp: boolean } | null>(null);
   const [errorMsg, setErrorMsg] = useState('');
+  const [collecting, setCollecting] = useState(false);
+  const [retry, setRetry] = useState<(() => void) | null>(null);
 
   const restoreOpts = useRef<{ confirmOriginMismatch?: boolean; conflict?: ConflictStrategy; backup?: boolean }>({});
   const cleanup = useRef<(() => void) | null>(null);
@@ -143,26 +149,50 @@ export default function App() {
     if (view === 'ready' && collected) saveReadyResult({ collected, saved });
   }, [view, collected, saved]);
 
-  const toError = (m: string) => {
+  const toError = (m: string, onRetry: (() => void) | null = null) => {
     setErrorMsg(m);
+    setRetry(onRetry ? () => onRetry : null);
     setView('error');
   };
 
   // ---------------------------------------------------------------- collect
+  // Progress is shown on the Home screen the user pressed the button on (no separate screen).
   const startCollect = useCallback(() => {
     setProgress(Object.fromEntries(ALL_COMPONENTS.map((c) => [c, { status: 'pending' as TransferStatus }])));
-    setView('collecting');
+    setCollecting(true);
+    setView('home');
     cleanup.current?.();
+    const chunks: string[] = [];
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const finish = () => {
+      clearTimeout(timer);
+      setCollecting(false);
+    };
+    const fail = (message: string) => {
+      cleanup.current?.();
+      finish();
+      toError(message, startCollect);
+    };
+    timer = setTimeout(() => fail(COLLECT_TIMEOUT_MESSAGE), COLLECT_TIMEOUT_MS);
     cleanup.current = runOp({ type: 'collect' }, (msg: OpResponse) => {
       if (msg.type === 'progress') {
         setProgress((p) => ({ ...p, [msg.component]: { status: msg.status, itemCount: msg.itemCount } }));
+      } else if (msg.type === 'ciphertextChunk') {
+        chunks.push(msg.data);
       } else if (msg.type === 'collected') {
-        setCollected({ pkg: msg.pkg, code: msg.code, results: msg.results, unsupported: msg.unsupported, sizeBytes: msg.sizeBytes });
+        finish();
+        setCollected({
+          pkg: { ...msg.pkg, ciphertext: chunks.join('') },
+          code: msg.code,
+          results: msg.results,
+          unsupported: msg.unsupported,
+          sizeBytes: msg.sizeBytes,
+        });
         setSaved(NOTHING_SAVED);
         setGuard(false);
         setView('ready');
       } else if (msg.type === 'error') {
-        toError(msg.message);
+        fail(msg.message);
       }
     });
   }, []);
@@ -298,6 +328,8 @@ export default function App() {
         {view === 'home' && detect && (
           <Home
             detect={detect}
+            collecting={collecting}
+            progress={progress}
             onTransfer={startCollect}
             onReceive={() => {
               clearDraft();
@@ -307,23 +339,6 @@ export default function App() {
               setView('receive');
             }}
           />
-        )}
-
-        {view === 'collecting' && (
-          <div className="gap fade-in">
-            <div className="section-title">Collecting session…</div>
-            <div className="rows">
-              {ALL_COMPONENTS.map((c) => (
-                <ComponentRow
-                  key={c}
-                  component={c}
-                  status={progress[c]?.status ?? 'pending'}
-                  value={progress[c]?.itemCount != null ? String(progress[c]?.itemCount) : ''}
-                />
-              ))}
-            </div>
-            <div className="callout info">Serializing &amp; encrypting with an ephemeral key…</div>
-          </div>
         )}
 
         {view === 'ready' && collected && (
@@ -408,6 +423,11 @@ export default function App() {
             <div className="callout danger" data-testid="error-message">
               {errorMsg}
             </div>
+            {retry && (
+              <Button testid="error-retry" onClick={retry}>
+                Retry
+              </Button>
+            )}
             <Button testid="error-back" variant="ghost" onClick={reset}>
               Back
             </Button>
@@ -436,7 +456,19 @@ function Loading({ label }: { label?: string }) {
   );
 }
 
-function Home({ detect, onTransfer, onReceive }: { detect: DetectInfo; onTransfer: () => void; onReceive: () => void }) {
+function Home({
+  detect,
+  collecting,
+  progress,
+  onTransfer,
+  onReceive,
+}: {
+  detect: DetectInfo;
+  collecting: boolean;
+  progress: ProgressMap;
+  onTransfer: () => void;
+  onReceive: () => void;
+}) {
   return (
     <div className="gap fade-in">
       <div className="origin-card" data-testid="origin-card">
@@ -474,13 +506,32 @@ function Home({ detect, onTransfer, onReceive }: { detect: DetectInfo; onTransfe
 
       <div className="spacer" />
 
-      <Button testid="transfer-session-button" onClick={onTransfer} disabled={!detect.supported}>
-        Transfer Session
+      <Button testid="transfer-session-button" onClick={onTransfer} disabled={!detect.supported || collecting}>
+        {collecting ? (
+          <>
+            <span className="spinner" /> Collecting session…
+          </>
+        ) : (
+          'Transfer Session'
+        )}
       </Button>
-      <div className="hint" data-testid="transfer-hint">
-        Creates 2 things: an encrypted file and a one-time code. You need both on the other browser.
-      </div>
-      <Button testid="receive-session-button" variant="ghost" onClick={onReceive}>
+      {collecting ? (
+        <div className="rows" data-testid="collect-progress">
+          {ALL_COMPONENTS.map((c) => (
+            <ComponentRow
+              key={c}
+              component={c}
+              status={progress[c]?.status ?? 'pending'}
+              value={progress[c]?.itemCount != null ? String(progress[c]?.itemCount) : ''}
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="hint" data-testid="transfer-hint">
+          Creates 2 things: an encrypted file and a one-time code. You need both on the other browser.
+        </div>
+      )}
+      <Button testid="receive-session-button" variant="ghost" onClick={onReceive} disabled={collecting}>
         Receive Session
       </Button>
       <div className="hint">Cookies, storage, IndexedDB &amp; caches are captured for this origin only.</div>

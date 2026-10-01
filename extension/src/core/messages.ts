@@ -13,6 +13,9 @@ import {
 
 export const PORT_NAME = 'session-transfer-op';
 
+/** Ciphertext characters per port message; well under the 64 MiB port limit. */
+export const CIPHERTEXT_CHUNK_CHARS = 8 * 1024 * 1024;
+
 /** Popup -> background */
 export type OpRequest =
   | { type: 'detect' }
@@ -31,9 +34,12 @@ export type OpRequest =
 export type OpResponse =
   | { type: 'detected'; info: DetectInfo }
   | { type: 'progress'; component: TransferComponent; status: TransferStatus; itemCount?: number }
+  // A chrome.runtime.Port message is capped at 64 MiB, so a large package's ciphertext is
+  // streamed in `ciphertextChunk` messages first and `collected` carries the rest of it.
+  | { type: 'ciphertextChunk'; data: string }
   | {
       type: 'collected';
-      pkg: EncryptedPackage;
+      pkg: Omit<EncryptedPackage, 'ciphertext'>;
       code: string;
       results: TransferComponentResult[];
       unsupported: string[];

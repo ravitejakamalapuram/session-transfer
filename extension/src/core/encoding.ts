@@ -1,12 +1,13 @@
 // Base64 <-> bytes helpers usable in both service-worker and popup contexts.
 
 export function bytesToBase64(bytes: Uint8Array): string {
-  let binary = '';
+  // Join pieces once: repeated `+=` on a string took ~20 s for an 84 MB payload.
+  const pieces: string[] = [];
   const chunk = 0x8000;
   for (let i = 0; i < bytes.length; i += chunk) {
-    binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+    pieces.push(String.fromCharCode(...bytes.subarray(i, i + chunk)));
   }
-  return btoa(binary);
+  return btoa(pieces.join(''));
 }
 
 export function base64ToBytes(b64: string): Uint8Array {
