@@ -19,6 +19,9 @@ export const CIPHERTEXT_CHUNK_CHARS = 8 * 1024 * 1024;
 /** Popup -> background */
 export type OpRequest =
   | { type: 'detect' }
+  // A package over the 64 MiB port limit is streamed in `packageChunk` messages first; the
+  // following inspect/restore then carries an empty `packageText`.
+  | { type: 'packageChunk'; data: string }
   | { type: 'collect'; requireCode?: boolean }
   | { type: 'inspect'; packageText: string; code?: string }
   | {

@@ -62,6 +62,9 @@ const FEEDBACK_URL = 'https://chromewebstore.google.com/detail/fnfmlchbfofjdfeib
 const DRAFT_KEY = 'receiveDraft';
 const DRAFT_TTL_MS = 30 * 60 * 1000;
 const IS_RECEIVE_TAB = location.hash === '#receive';
+// A package this big is not shown in (or drafted from) the textarea: rendering and
+// serialising tens of MB on every change froze the receiver tab.
+const LARGE_PACKAGE_CHARS = 2 * 1024 * 1024;
 const CODE_PATTERN = /^[A-Za-z0-9]{4}[-\s]?[A-Za-z0-9]{4}[-\s]?[A-Za-z0-9]{4}$/;
 
 interface ReceiveDraft {
@@ -160,7 +163,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (view === 'receive' && (packageText || code || fileName)) saveDraft({ packageText, code, fileName });
+    if (view === 'receive' && (packageText || code || fileName) && packageText.length <= LARGE_PACKAGE_CHARS) saveDraft({ packageText, code, fileName });
     if (view === 'restored') clearDraft();
   }, [view, packageText, code, fileName]);
 
@@ -294,11 +297,12 @@ export default function App() {
     setFileName(file.name);
     const reader = new FileReader();
     reader.onload = () => setPackageText(String(reader.result ?? ''));
+    reader.onerror = () => toError('Could not read the file.');
     reader.readAsText(file);
   };
 
   const openReceiveTab = () => {
-    saveDraft({ packageText, code, fileName });
+    if (packageText.length <= LARGE_PACKAGE_CHARS) saveDraft({ packageText, code, fileName });
     chrome.tabs.create({ url: chrome.runtime.getURL('index.html#receive') });
     window.close();
   };
@@ -667,14 +671,20 @@ function Receive({
         </label>
       )}
 
-      <textarea
-        className="textarea"
-        rows={4}
-        placeholder="…or paste the encrypted package here"
-        value={packageText}
-        onChange={(e) => onPackageChange(e.target.value)}
-        data-testid="package-textarea"
-      />
+      {packageText.length > LARGE_PACKAGE_CHARS ? (
+        <div className="callout info" style={{ fontSize: 10 }} data-testid="package-loaded-large">
+          Large package loaded ({(packageText.length / 1024 / 1024).toFixed(0)} MB). It is not shown here.
+        </div>
+      ) : (
+        <textarea
+          className="textarea"
+          rows={4}
+          placeholder="…or paste the encrypted package here"
+          value={packageText}
+          onChange={(e) => onPackageChange(e.target.value)}
+          data-testid="package-textarea"
+        />
+      )}
 
       {showCode && (
         <div className="gap-sm">
