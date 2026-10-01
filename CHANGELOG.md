@@ -4,6 +4,13 @@ All notable changes to Session Transfer are documented here. The extension
 version comes from `extension/package.json` and is written into the built
 manifest.
 
+## [Unreleased]
+
+### Fixed
+- Extension icon (16/32/48/128 px) no longer has white square corners: the
+  area outside the rounded tile is now transparent, so the icon blends into
+  dark toolbars (APP-300).
+
 ## [1.2.1] - 2026-09-22
 
 ### Changed
