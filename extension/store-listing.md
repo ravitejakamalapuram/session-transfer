@@ -62,7 +62,7 @@ Reviewers will install and run the extension, so do this first:
 **Screenshots (1280×800)** — upload in this order, from `extension/store-assets/`:
 1. `screenshot-home.png` — "Session detected — one click to export"
 2. `screenshot-transfer.png` — "Encrypted, one-time code, 5-minute expiry"
-3. `screenshot-receive.png` — "Paste the code, we do the rest"
+3. `screenshot-receive.png` — "Load the package + enter the code"
 4. `screenshot-restored.png` — "Logged in & verified"
 
 **Small promo tile (440×280):** `store-assets/tile-small-440x280.png`

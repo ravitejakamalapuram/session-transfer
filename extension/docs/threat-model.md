@@ -12,6 +12,7 @@ Session data is treated as equivalent to passwords/access tokens.
 | 6 | Clipboard leakage | Copy is opt-in. Clipboard holds ciphertext (package) or the one-time code — never plaintext session values. |
 | 7 | Screenshots containing secrets | The popup never renders cookie/token/storage values; only counts and non-sensitive metadata are shown. |
 | 8 | Replay attacks | Short expiry (5 min) + a random `transferId`. Codes are single-use in practice (freshly generated per export). AAD binds origin. |
+| 9 | Ready result kept while the popup is closed | So that closing the popup (e.g. to write the code down) does not lose the transfer, the encrypted package and its code are kept **together** in `chrome.storage.session` until Done or expiry (5 min). That area is in memory only (never written to disk), readable only by the extension's own pages, and emptied when the browser or extension restarts. It is deleted on Done, when the countdown reaches zero with the popup open, or the next time the popup opens after expiry. If the popup is never reopened, an expired record stays in memory until the browser closes; an alarm to delete it at exactly 5 min would need the `alarms` permission, which is not requested. |
 
 ## Cryptographic design
 

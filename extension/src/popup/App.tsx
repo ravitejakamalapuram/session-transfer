@@ -10,12 +10,11 @@ import {
   StatusIcon,
   timeAgo,
 } from './components/ui';
+import { clearReadyResult, Collected, loadReadyResult, needsDoneGuard, Ready, saveReadyResult, Saved } from './ready';
 import {
   ConflictStrategy,
-  EncryptedPackage,
   PayloadSummary,
   TransferComponent,
-  TransferComponentResult,
   TransferStatus,
   VerificationReport,
 } from '../core/types';
@@ -35,21 +34,9 @@ type View =
   | 'restored'
   | 'error';
 
-interface Collected {
-  pkg: EncryptedPackage;
-  code: string;
-  results: TransferComponentResult[];
-  unsupported: string[];
-  sizeBytes: number;
-}
-
 type ProgressMap = Partial<Record<TransferComponent, { status: TransferStatus; itemCount?: number }>>;
 
-function formatBytes(n: number): string {
-  if (n < 1024) return `${n} B`;
-  if (n < 1048576) return `${(n / 1024).toFixed(1)} KB`;
-  return `${(n / 1048576).toFixed(1)} MB`;
-}
+const NOTHING_SAVED: Saved = { package: false, code: false };
 
 const LOGO = chrome.runtime.getURL('icons/icon48.png');
 const FEEDBACK_URL = 'https://chromewebstore.google.com/detail/fnfmlchbfofjdfeibgdkcibfjjlfcefc/reviews';
@@ -95,6 +82,8 @@ export default function App() {
   const [collected, setCollected] = useState<Collected | null>(null);
   const [showDetails, setShowDetails] = useState(false);
   const [copied, setCopied] = useState<'code' | 'package' | null>(null);
+  const [saved, setSaved] = useState<Saved>(NOTHING_SAVED);
+  const [guard, setGuard] = useState(false);
 
   const [packageText, setPackageText] = useState('');
   const [code, setCode] = useState('');
@@ -114,8 +103,12 @@ export default function App() {
   useEffect(() => {
     let stop: (() => void) | undefined;
     let cancelled = false;
-    loadDraft().then((draft) => {
+    Promise.all([loadDraft(), IS_RECEIVE_TAB ? null : loadReadyResult()]).then(([draft, ready]) => {
       if (cancelled) return;
+      if (ready) {
+        setCollected(ready.collected);
+        setSaved(ready.saved);
+      }
       if (draft) {
         setPackageText(draft.packageText);
         setCode(draft.code);
@@ -128,7 +121,7 @@ export default function App() {
       stop = runOp({ type: 'detect' }, (msg) => {
         if (msg.type === 'detected') {
           setDetect(msg.info);
-          setView(draft ? 'receive' : 'home');
+          setView(ready ? 'ready' : draft ? 'receive' : 'home');
         } else if (msg.type === 'error') {
           setErrorMsg(msg.message);
           setView('error');
@@ -146,6 +139,10 @@ export default function App() {
     if (view === 'restored') clearDraft();
   }, [view, packageText, code, fileName]);
 
+  useEffect(() => {
+    if (view === 'ready' && collected) saveReadyResult({ collected, saved });
+  }, [view, collected, saved]);
+
   const toError = (m: string) => {
     setErrorMsg(m);
     setView('error');
@@ -161,6 +158,8 @@ export default function App() {
         setProgress((p) => ({ ...p, [msg.component]: { status: msg.status, itemCount: msg.itemCount } }));
       } else if (msg.type === 'collected') {
         setCollected({ pkg: msg.pkg, code: msg.code, results: msg.results, unsupported: msg.unsupported, sizeBytes: msg.sizeBytes });
+        setSaved(NOTHING_SAVED);
+        setGuard(false);
         setView('ready');
       } else if (msg.type === 'error') {
         toError(msg.message);
@@ -221,12 +220,15 @@ export default function App() {
     a.download = `session-${host}-${stamp}.stpkg`;
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 2000);
+    setSaved((s) => ({ ...s, package: true }));
   };
 
   const copy = async (what: 'code' | 'package') => {
     if (!collected) return;
     const text = what === 'code' ? collected.code : JSON.stringify(collected.pkg);
-    await navigator.clipboard.writeText(text).catch(() => undefined);
+    const ok = await navigator.clipboard.writeText(text).then(() => true, () => false);
+    if (!ok) return;
+    setSaved((s) => ({ ...s, [what]: true }));
     setCopied(what);
     setTimeout(() => setCopied(null), 1500);
   };
@@ -245,6 +247,24 @@ export default function App() {
     chrome.tabs.create({ url: chrome.runtime.getURL('index.html#receive') });
     window.close();
   };
+
+  const finishTransfer = () => {
+    clearReadyResult();
+    setCollected(null);
+    setSaved(NOTHING_SAVED);
+    setGuard(false);
+    reset();
+  };
+
+  const onDone = () => {
+    const expired = collected != null && Date.now() >= collected.pkg.expiresAt;
+    if (!expired && needsDoneGuard(saved)) setGuard(true);
+    else finishTransfer();
+  };
+
+  const onExpired = useCallback(() => {
+    clearReadyResult();
+  }, []);
 
   const reset = () => {
     cleanup.current?.();
@@ -311,11 +331,16 @@ export default function App() {
             collected={collected}
             showDetails={showDetails}
             setShowDetails={setShowDetails}
+            saved={saved}
+            guard={guard}
             copied={copied}
             onCopyCode={() => copy('code')}
             onCopyPackage={() => copy('package')}
             onDownload={downloadPackage}
-            onDone={reset}
+            onDone={onDone}
+            onGoBack={() => setGuard(false)}
+            onLeave={finishTransfer}
+            onExpired={onExpired}
           />
         )}
 
@@ -452,6 +477,9 @@ function Home({ detect, onTransfer, onReceive }: { detect: DetectInfo; onTransfe
       <Button testid="transfer-session-button" onClick={onTransfer} disabled={!detect.supported}>
         Transfer Session
       </Button>
+      <div className="hint" data-testid="transfer-hint">
+        Creates 2 things: an encrypted file and a one-time code. You need both on the other browser.
+      </div>
       <Button testid="receive-session-button" variant="ghost" onClick={onReceive}>
         Receive Session
       </Button>
@@ -466,90 +494,6 @@ function Frag({ k, v, muted }: { k: string; v: string; muted?: boolean }) {
       <span className={`k ${muted ? 'muted' : ''}`}>{k}</span>
       <span className={`v ${muted ? 'muted' : ''}`}>{v}</span>
     </>
-  );
-}
-
-function Ready({
-  collected,
-  showDetails,
-  setShowDetails,
-  copied,
-  onCopyCode,
-  onCopyPackage,
-  onDownload,
-  onDone,
-}: {
-  collected: Collected;
-  showDetails: boolean;
-  setShowDetails: (v: boolean) => void;
-  copied: 'code' | 'package' | null;
-  onCopyCode: () => void;
-  onCopyPackage: () => void;
-  onDownload: () => void;
-  onDone: () => void;
-}) {
-  return (
-    <div className="gap fade-in">
-      <div className="center">
-        <div className="big-check">✓</div>
-        <div className="section-title">Ready to transfer</div>
-        <div className="hint">{hostOf(collected.pkg.origin)} · {formatBytes(collected.sizeBytes)}</div>
-      </div>
-
-      <div className="code-display" data-testid="transfer-code-display">
-        <div className="label">One-time transfer code · expires in {expiresIn(collected.pkg.expiresAt)}</div>
-        <div className="code" data-testid="transfer-code">
-          {collected.code}
-        </div>
-      </div>
-
-      <div className="callout info">
-        On the other browser: open <b>Receive Session</b>, load the package file (or paste it), and enter this code.
-      </div>
-
-      <div className="gap-sm">
-        <Button testid="download-package-button" onClick={onDownload}>
-          ⬇ Download encrypted package
-        </Button>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <Button testid="copy-code-button" variant="ghost" onClick={onCopyCode}>
-            {copied === 'code' ? 'Copied ✓' : 'Copy code'}
-          </Button>
-          <Button testid="copy-package-button" variant="ghost" onClick={onCopyPackage}>
-            {copied === 'package' ? 'Copied ✓' : 'Copy package'}
-          </Button>
-        </div>
-      </div>
-
-      <button className="link-btn" data-testid="toggle-details" onClick={() => setShowDetails(!showDetails)}>
-        {showDetails ? 'Hide transfer details' : 'View transfer details'}
-      </button>
-
-      {showDetails && (
-        <div className="gap-sm fade-in" data-testid="transfer-details">
-          <div className="rows">
-            {collected.results.map((r) => (
-              <ComponentRow
-                key={r.component}
-                component={r.component}
-                status={r.status}
-                value={r.error ?? (r.itemCount != null ? String(r.itemCount) : '')}
-              />
-            ))}
-          </div>
-          <div className="section-title">Not transferable (by design)</div>
-          <div className="callout warn" style={{ fontSize: 10 }}>
-            {collected.unsupported.map((u) => (
-              <div key={u}>— {u}</div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      <Button testid="transfer-done-button" variant="ghost" onClick={onDone}>
-        Done
-      </Button>
-    </div>
   );
 }
 
@@ -601,6 +545,9 @@ function Receive({
     <div className="gap fade-in">
       <div className="section-title">Receive session</div>
 
+      <div className="section-title" data-testid="receive-step-package">
+        ① Encrypted package {hasPackage && <span className="step-check">✓</span>}
+      </div>
       {onOpenTab ? (
         <button className="btn ghost" onClick={onOpenTab} data-testid="load-file-label">
           {fileName ? `📄 ${fileName}` : '📁 Load package file (.stpkg)'}
@@ -622,7 +569,9 @@ function Receive({
       />
 
       <div className="gap-sm">
-        <div className="section-title">Transfer code</div>
+        <div className="section-title" data-testid="receive-step-code">
+          ② Transfer code {hasCode && <span className="step-check">✓</span>}
+        </div>
         <input
           className="input code-input"
           placeholder="ABC7-K9P2-WXYZ"
