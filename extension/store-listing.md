@@ -31,22 +31,22 @@ Reviewers will install and run the extension, so do this first:
 **Name:** Session Transfer
 
 **Summary (short description, ≤132 chars):**
-> Move logged-in browser sessions between Chrome profiles or devices. AES-256-GCM encrypted, fully local. Optional extra code. No cloud.
+> Move logged-in browser sessions between Chrome profiles or devices. Optional encryption, fully local. Optional extra code. No cloud.
 
 **Description (detailed):**
 > Session Transfer moves an authenticated website session from one Chrome browser, profile, or computer to another in a couple of clicks — no re-login, no MFA loop.
 >
 > HOW IT WORKS
 > 1. On the source browser, open the site, click the extension and press "Transfer Session".
-> 2. The extension captures cookies (including HttpOnly), localStorage, sessionStorage, IndexedDB and Cache Storage, then encrypts everything with AES-256-GCM into one package that you copy or download.
-> 3. On the destination browser, press "Receive Session", paste or load the encrypted package (and enter the transfer code if the package asks for one). State is restored, the page reloads, and a verification report confirms the result.
+> 2. The extension captures cookies (including HttpOnly), localStorage, sessionStorage, IndexedDB and Cache Storage, into one package that you copy or download (optionally encrypted with a transfer code).
+> 3. On the destination browser, press "Receive Session", paste or load the package (and enter the transfer code if the package asks for one). State is restored, the page reloads, and a verification report confirms the result.
 >
 > SECURITY & PRIVACY BY DESIGN
 > • 100% local — no servers, no accounts, no analytics, no tracking.
-> • AES-256-GCM with a fresh random key for every export. By default the key is inside the copied text or file, so treat it like a password. Turn on the separate transfer code setting to derive the key from a code you send on another channel (PBKDF2-SHA256, 210,000 iterations).
+> • Not encrypted by default, so treat the copied text or file like a password. Turn on "Encrypt with a transfer code" to encrypt it with AES-256-GCM, using a key derived from a code you send on another channel (PBKDF2-SHA256, 600,000 iterations).
 > • The extension refuses packages older than 5 minutes.
 > • Strict origin isolation — a package can only ever be restored into its own website origin.
-> • Existing destination sessions are never silently overwritten: choose Replace, Merge or Cancel, with an optional encrypted, auto-expiring backup.
+> • Existing destination sessions are never silently overwritten: choose Replace, Merge or Cancel.
 > • Honest about limits: WebAuthn/passkeys, hardware credentials and TLS-bound state cannot be transferred by any extension, and we say so in-product instead of faking success.
 >
 > IDEAL FOR
@@ -61,7 +61,7 @@ Reviewers will install and run the extension, so do this first:
 
 **Screenshots (1280×800)** — upload in this order, from `extension/store-assets/`:
 1. `screenshot-home.png` — "Session detected — one click to export"
-2. `screenshot-transfer.png` — "Encrypted, copy or download, 5-minute expiry"
+2. `screenshot-transfer.png` — "Copy or download, optional encryption, 5-minute expiry"
 3. `screenshot-receive.png` — "Paste or load the package"
 4. `screenshot-restored.png` — "Logged in & verified"
 
@@ -77,13 +77,13 @@ Reviewers will install and run the extension, so do this first:
 ## STEP 4 — Privacy practices tab (important — answer exactly like this)
 
 **Single purpose description:**
-> Session Transfer securely exports and imports a website's authenticated browser state (cookies and origin storage) between Chrome browsers/profiles/devices, using client-side encryption.
+> Session Transfer securely exports and imports a website's authenticated browser state (cookies and origin storage) between Chrome browsers/profiles/devices, with optional client-side encryption.
 
 **Permission justifications:**
 - **cookies** — "Reading and restoring cookies (including HttpOnly/Secure) is the core mechanism for transferring authenticated sessions. Cookies are only accessed for the origin the user explicitly selects."
 - **scripting** — "Used to run a one-time, user-initiated collect/restore function in the active tab to read/write that origin's localStorage, sessionStorage, IndexedDB and Cache Storage. No code runs automatically on page load."
 - **tabs** — "Used to identify the active tab's origin for collection and to open/reload the destination tab during restore."
-- **storage** — "Stores encrypted, auto-expiring (30 min) local backups of destination state before an optional overwrite. Never synced, never transmitted."
+- **storage** — "Keeps the on-device setting and a short-lived ready result while the popup is closed. Never synced, never transmitted."
 - **host_permissions (http/https)** — "The product's purpose is transferring sessions for any website the user is logged into, so a fixed host list is impossible. Access is on-demand (user clicks the toolbar action), strictly limited to the selected origin, and cross-origin mixing is cryptographically prevented (origin bound as AEAD authenticated data)."
 
 **Remote code:** "No — this extension does not use remote code."

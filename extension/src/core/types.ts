@@ -5,8 +5,11 @@ export const PACKAGE_VERSION = 2 as const;
 /** Oldest package version the receiver still reads (v1 = transfer code only). */
 export const LEGACY_PACKAGE_VERSION = 1 as const;
 
-/** Where the decryption key comes from: inside the package, or derived from a separate transfer code. */
-export type KeyMode = 'embedded' | 'code';
+/**
+ * 'none': plain package, not encrypted (default). 'code': AES-256-GCM with a key derived from a
+ * separate transfer code. 'embedded' is only read, for packages made by v1.2.x.
+ */
+export type KeyMode = 'none' | 'embedded' | 'code';
 
 /** Per-storage-mechanism outcome. Never contains secret values. */
 export type TransferStatus = 'success' | 'partial' | 'failed' | 'unsupported' | 'pending' | 'running';
@@ -138,19 +141,19 @@ export interface EncryptedPackage {
   version: number;
   /** v2 only. v1 packages are always 'code'. */
   keyMode?: KeyMode;
-  alg: 'AES-256-GCM';
+  alg: 'AES-256-GCM' | 'none';
   /** base64 AES key, 32 bytes. Present only when keyMode = 'embedded'. */
   key?: string;
   kdf?: 'PBKDF2-SHA256'; // code mode / v1
   iterations?: number; // code mode / v1
   salt?: string; // base64, code mode / v1
-  iv: string; // base64
+  iv: string; // base64 ('' when keyMode = 'none')
   createdAt: number;
   expiresAt: number;
   transferId: string;
   /** Authenticated (AAD) but not encrypted; tampering breaks decryption (code mode / v1). */
   origin: string;
-  ciphertext: string; // base64
+  ciphertext: string; // base64 (the plain payload JSON when keyMode = 'none')
 }
 
 /** Non-sensitive summary shown to the user before applying a transfer. */

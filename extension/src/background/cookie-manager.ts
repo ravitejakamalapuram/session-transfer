@@ -41,6 +41,16 @@ function cookieUrl(c: CapturedCookie): string {
 export interface CookieRestoreResult {
   applied: number;
   failed: number;
+  /** The cookies that were actually written. */
+  written: CapturedCookie[];
+}
+
+const cookieId = (c: { name: string; domain: string; path: string }) => `${c.name}|${c.domain.replace(/^\./, '')}|${c.path}`;
+
+/** How many of `cookies` exist (same name, domain and path) in the browser for `url`. */
+export async function countMatchingCookies(url: string, cookies: CapturedCookie[]): Promise<number> {
+  const have = new Set((await chrome.cookies.getAll({ url }).catch(() => [])).map(cookieId));
+  return cookies.filter((c) => have.has(cookieId(c))).length;
 }
 
 export async function restoreCookies(
@@ -50,20 +60,9 @@ export async function restoreCookies(
 ): Promise<CookieRestoreResult> {
   let applied = 0;
   let failed = 0;
-
-  if (strategy === 'replace') {
-    // Remove existing cookies for the destination URL before writing.
-    try {
-      const existing = await chrome.cookies.getAll({ url: originUrl });
-      for (const c of existing) {
-        const host = c.domain.replace(/^\./, '');
-        const scheme = c.secure ? 'https://' : 'http://';
-        await chrome.cookies.remove({ url: `${scheme}${host}${c.path || '/'}`, name: c.name }).catch(() => undefined);
-      }
-    } catch {
-      /* non-fatal */
-    }
-  }
+  const written: CapturedCookie[] = [];
+  // Replace: remember what was there, write the new cookies first, then remove only the leftovers.
+  const existing = strategy === 'replace' ? await chrome.cookies.getAll({ url: originUrl }).catch(() => []) : [];
 
   for (const c of cookies) {
     const details: chrome.cookies.SetDetails = {
@@ -81,11 +80,20 @@ export async function restoreCookies(
 
     try {
       const set = await chrome.cookies.set(details);
-      if (set) applied++;
-      else failed++;
+      if (set) {
+        applied++;
+        written.push(c);
+      } else failed++;
     } catch {
       failed++;
     }
   }
-  return { applied, failed };
+
+  const keep = new Set(cookies.map(cookieId));
+  for (const c of existing) {
+    if (keep.has(cookieId(c))) continue;
+    const scheme = c.secure ? 'https://' : 'http://';
+    await chrome.cookies.remove({ url: `${scheme}${c.domain.replace(/^\./, '')}${c.path || '/'}`, name: c.name }).catch(() => undefined);
+  }
+  return { applied, failed, written };
 }

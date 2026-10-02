@@ -2,10 +2,9 @@
 // All heavy work happens here (never in the popup) and progress is streamed back
 // over a long-lived Port so the popup UI stays responsive.
 
-import { pageCollect, pageDetect, pageRestore } from './injected';
-import { collectCookies, countCookies, restoreCookies } from './cookie-manager';
+import { pageCollect, pageDetect, pageRestore, pageVerify } from './injected';
+import { CookieRestoreResult, collectCookies, countCookies, countMatchingCookies, restoreCookies } from './cookie-manager';
 import { getActiveTab, originOf, reloadTab, resolveDestinationTab } from './tab-utils';
-import { createBackup, purgeExpiredBackups } from './extension-storage';
 import { checkPackage, decryptPayload, encryptPayload, packageNeedsCode } from '../core/crypto';
 import { logger } from '../core/logger';
 import { CIPHERTEXT_CHUNK_CHARS, DetectInfo, OpRequest, OpResponse, PORT_NAME } from '../core/messages';
@@ -21,6 +20,7 @@ import {
   SessionPayload,
   TransferComponent,
   TransferComponentResult,
+  TransferStatus,
   VerificationLine,
 } from '../core/types';
 
@@ -28,7 +28,7 @@ const TRANSFER_TTL_MS = 5 * 60 * 1000; // short expiration (replay window)
 const MAX_PACKAGE_BYTES = 100 * 1024 * 1024; // 100 MB hard ceiling
 const LARGE_WARN_BYTES = 20 * 1024 * 1024;
 
-type PagedFunc = typeof pageDetect | typeof pageCollect | typeof pageRestore;
+type PagedFunc = typeof pageDetect | typeof pageCollect | typeof pageRestore | typeof pageVerify;
 
 async function inject<T>(tabId: number, func: PagedFunc, arg?: unknown): Promise<T> {
   const [res] = await chrome.scripting.executeScript({
@@ -166,13 +166,13 @@ async function handleCollect(port: chrome.runtime.Port, requireCode: boolean) {
     unsupported: NON_TRANSFERABLE,
   };
 
-  const sizeBytes = new Blob([JSON.stringify(payload)]).size;
+  const { pkg, code } = await encryptPayload(payload, TRANSFER_TTL_MS, requireCode ? 'code' : 'none');
+  // Payload size recovered from the finished package (base64 is 4 chars per 3 bytes): no second stringify.
+  const sizeBytes = Math.floor((pkg.ciphertext.length * 3) / 4);
   if (sizeBytes > MAX_PACKAGE_BYTES) {
     send(port, { type: 'error', message: `Session too large (${(sizeBytes / 1048576).toFixed(0)} MB). Exceeds 100 MB limit.` });
     return;
   }
-
-  const { pkg, code } = await encryptPayload(payload, TRANSFER_TTL_MS, requireCode ? 'code' : 'embedded');
   logger.info('Session collected & encrypted', { origin, keyMode: pkg.keyMode, sizeBytes, components: results.length, large: sizeBytes > LARGE_WARN_BYTES });
   const { ciphertext, ...header } = pkg;
   for (let i = 0; i < ciphertext.length; i += CIPHERTEXT_CHUNK_CHARS) {
@@ -226,31 +226,6 @@ async function handleInspect(port: chrome.runtime.Port, req: Extract<OpRequest, 
 }
 
 // ---------------------------------------------------------------- restore
-async function collectDestinationPayload(tab: chrome.tabs.Tab, origin: string): Promise<SessionPayload> {
-  const cookies = await collectCookies(tab.url!).catch(() => []);
-  let page: any = null;
-  try {
-    page = await inject(tab.id!, pageCollect);
-  } catch {
-    /* ignore */
-  }
-  return {
-    format: PACKAGE_FORMAT,
-    version: PACKAGE_VERSION,
-    createdAt: Date.now(),
-    source: { browser: 'Chrome', origin, userAgent: navigator.userAgent, title: tab.title ?? origin, url: tab.url! },
-    state: {
-      cookies,
-      localStorage: page?.localStorage?.items ?? [],
-      sessionStorage: page?.sessionStorage?.items ?? [],
-      indexedDB: page?.indexedDB?.dbs ?? [],
-      cacheStorage: page?.cacheStorage?.caches ?? [],
-    },
-    results: [],
-    unsupported: [],
-  };
-}
-
 async function handleRestore(port: chrome.runtime.Port, req: Extract<OpRequest, { type: 'restore' }>) {
   let payload: SessionPayload;
   let pkg: EncryptedPackage;
@@ -312,22 +287,15 @@ async function handleRestore(port: chrome.runtime.Port, req: Extract<OpRequest, 
     return;
   }
 
-  // Optional encrypted backup of current destination state.
-  let backedUp = false;
-  if (req.backup && existingTotal > 0) {
-    try {
-      const dest = await collectDestinationPayload(tab, origin);
-      await createBackup(dest);
-      backedUp = true;
-    } catch {
-      /* backup is best-effort */
-    }
-  }
-
   const applyStrategy = strategy === 'merge' ? 'merge' : 'replace';
+  const destUrl = tab.url ?? origin + '/';
 
   // Apply cookies (extension context) then page storage (page context).
-  const cookieRes = await restoreCookies(payload.state.cookies, applyStrategy, tab.url ?? origin + '/').catch(() => ({ applied: 0, failed: payload.state.cookies.length }));
+  const cookieRes: CookieRestoreResult = await restoreCookies(payload.state.cookies, applyStrategy, destUrl).catch(() => ({
+    applied: 0,
+    failed: payload.state.cookies.length,
+    written: [],
+  }));
   let pageRes: any = null;
   try {
     pageRes = await inject(tab.id, pageRestore, {
@@ -343,45 +311,70 @@ async function handleRestore(port: chrome.runtime.Port, req: Extract<OpRequest, 
     /* page write failed */
   }
 
-  // Reload so the app initializes with the restored cookies + storage.
+  // Verify what is really there now (same keys AND values), BEFORE the reload: apps often rewrite state on load.
+  const matchedCookies = await countMatchingCookies(destUrl, cookieRes.written);
+  let matched = { localStorage: 0, sessionStorage: 0, indexedDB: 0, cacheStorage: 0 };
+  try {
+    matched = await inject(tab.id, pageVerify, {
+      localStorage: payload.state.localStorage,
+      sessionStorage: payload.state.sessionStorage,
+      indexedDB: payload.state.indexedDB.map((d) => d.name),
+      cacheStorage: payload.state.cacheStorage.map((c) => c.name),
+    });
+  } catch {
+    /* counts stay 0: reported as not verified */
+  }
+
+  // Reload so the app initializes with the restored cookies + storage (only if anything was written).
+  const wroteAnything =
+    cookieRes.applied > 0 ||
+    ['localStorage', 'sessionStorage', 'indexedDB', 'cacheStorage'].some((c) => (pageRes?.[c]?.applied ?? 0) > 0);
   let reloaded = false;
-  try {
-    await reloadTab(tab.id);
-    reloaded = true;
-  } catch {
-    /* ignore */
+  if (wroteAnything) {
+    try {
+      await reloadTab(tab.id);
+      reloaded = true;
+    } catch {
+      /* ignore */
+    }
   }
 
-  // Verify by re-reading counts (never values).
-  const verifyCookies = await countCookies(tab.url ?? origin).catch(() => 0);
-  let verifyPage = { localStorage: 0, sessionStorage: 0, indexedDB: 0, cacheStorage: 0 };
-  try {
-    verifyPage = await inject(tab.id, pageDetect);
-  } catch {
-    /* ignore */
-  }
-
-  const expectedIdbDbs = payload.state.indexedDB.length;
-  const expectedCaches = payload.state.cacheStorage.length;
+  const st = payload.state;
+  const idbRecords = st.indexedDB.reduce((n, d) => n + d.stores.reduce((m, x) => m + x.records.length, 0), 0);
+  const cacheEntries = st.cacheStorage.reduce((n, c) => n + c.entries.filter((e) => e.supported && e.reqMethod === 'GET').length, 0);
   const lines: VerificationLine[] = [
-    line('cookies', payload.state.cookies.length, verifyCookies),
-    line('localStorage', payload.state.localStorage.length, verifyPage.localStorage),
-    line('sessionStorage', payload.state.sessionStorage.length, verifyPage.sessionStorage),
-    line('indexedDB', expectedIdbDbs, verifyPage.indexedDB),
-    line('cacheStorage', expectedCaches, verifyPage.cacheStorage),
+    line('cookies', st.cookies.length, matchedCookies),
+    line('localStorage', st.localStorage.length, matched.localStorage),
+    line('sessionStorage', st.sessionStorage.length, matched.sessionStorage),
+    line('indexedDB', st.indexedDB.length, matched.indexedDB),
+    line('cacheStorage', st.cacheStorage.length, matched.cacheStorage),
   ];
 
+  const cookieNote = cookieRes.failed ? `${cookieRes.failed} cookie(s) could not be set` : '';
   const results: TransferComponentResult[] = [
-    { component: 'cookies', status: cookieRes.failed ? 'partial' : 'success', itemCount: cookieRes.applied, error: cookieRes.failed ? `${cookieRes.failed} cookie(s) could not be set` : undefined },
-    { component: 'localStorage', status: pageRes?.localStorage?.error ? 'failed' : 'success', itemCount: pageRes?.localStorage?.applied ?? 0, error: pageRes?.localStorage?.error },
-    { component: 'sessionStorage', status: pageRes?.sessionStorage?.error ? 'failed' : 'success', itemCount: pageRes?.sessionStorage?.applied ?? 0, error: pageRes?.sessionStorage?.error },
-    { component: 'indexedDB', status: pageRes?.indexedDB?.error ? 'failed' : 'success', itemCount: pageRes?.indexedDB?.applied ?? 0, error: pageRes?.indexedDB?.error },
-    { component: 'cacheStorage', status: pageRes?.cacheStorage?.error ? 'failed' : 'success', itemCount: pageRes?.cacheStorage?.applied ?? 0, error: pageRes?.cacheStorage?.error },
+    { component: 'cookies', status: outcome(cookieRes.applied, st.cookies.length), itemCount: cookieRes.applied, error: cookieNote || undefined },
+    pageResult('localStorage', pageRes, st.localStorage.length),
+    pageResult('sessionStorage', pageRes, st.sessionStorage.length),
+    pageResult('indexedDB', pageRes, idbRecords),
+    pageResult('cacheStorage', pageRes, cacheEntries),
   ];
 
-  const passed = lines.filter((l) => l.expected > 0).every((l) => l.actual >= l.expected);
-  logger.info('Session restored', { origin, passed, reloaded, backedUp });
-  send(port, { type: 'restored', report: { lines, passed, results, reloaded }, backedUp });
+  const passed = lines.every((l) => l.ok) && results.every((r) => r.status === 'success');
+  logger.info('Session restored', { origin, passed, reloaded });
+  send(port, { type: 'restored', report: { lines, passed, results, reloaded } });
+}
+
+/** success = everything written, partial = some, failed = nothing (when something was expected). */
+function outcome(applied: number, expected: number): TransferStatus {
+  if (applied >= expected) return 'success';
+  return applied > 0 ? 'partial' : 'failed';
+}
+
+function pageResult(component: TransferComponent, pageRes: any, expected: number): TransferComponentResult {
+  const r = pageRes?.[component];
+  const applied = r?.applied ?? 0;
+  const status = r?.error || !pageRes ? (applied > 0 ? 'partial' : 'failed') : outcome(applied, expected);
+  return { component, status, itemCount: applied, error: r?.error ?? (!pageRes ? 'Page write blocked' : undefined) };
 }
 
 function line(component: TransferComponent, expected: number, actual: number): VerificationLine {
@@ -415,6 +408,9 @@ chrome.runtime.onConnect.addListener((port) => {
   });
 });
 
-chrome.runtime.onInstalled.addListener(() => {
-  purgeExpiredBackups().catch(() => undefined);
+// v1.2.x kept encrypted destination backups here; they are gone, so remove any left behind.
+chrome.runtime.onInstalled.addListener(async () => {
+  const all = await chrome.storage.local.get(null).catch(() => ({}));
+  const old = Object.keys(all).filter((k) => k.startsWith('backup:'));
+  if (old.length) await chrome.storage.local.remove(old).catch(() => undefined);
 });

@@ -42,7 +42,7 @@ const COLLECT_TIMEOUT_MESSAGE =
 
 const NOTHING_SAVED: Saved = { package: false, code: false };
 
-// "Require a separate transfer code" setting. Per profile (storage.local), absent = OFF.
+// "Encrypt with a transfer code" setting. Per profile (storage.local), absent = OFF.
 const SETTING_KEY = 'settings.requireTransferCode';
 async function loadRequireCode(): Promise<boolean> {
   try {
@@ -118,13 +118,12 @@ export default function App() {
   const [mismatch, setMismatch] = useState<{ packageOrigin: string; destOrigin: string } | null>(null);
   const [conflict, setConflict] = useState<{ destOrigin: string; counts: Record<TransferComponent, number> } | null>(null);
   const [strategy, setStrategy] = useState<ConflictStrategy>('cancel');
-  const [backup, setBackup] = useState(true);
-  const [report, setReport] = useState<{ report: VerificationReport; backedUp: boolean } | null>(null);
+  const [report, setReport] = useState<{ report: VerificationReport } | null>(null);
   const [errorMsg, setErrorMsg] = useState('');
   const [collecting, setCollecting] = useState(false);
   const [retry, setRetry] = useState<(() => void) | null>(null);
 
-  const restoreOpts = useRef<{ confirmOriginMismatch?: boolean; conflict?: ConflictStrategy; backup?: boolean }>({});
+  const restoreOpts = useRef<{ confirmOriginMismatch?: boolean; conflict?: ConflictStrategy }>({});
   const cleanup = useRef<(() => void) | null>(null);
 
   useEffect(() => {
@@ -238,7 +237,7 @@ export default function App() {
 
   // ---------------------------------------------------------------- restore
   const runRestore = useCallback(
-    (extra: { confirmOriginMismatch?: boolean; conflict?: ConflictStrategy; backup?: boolean }) => {
+    (extra: { confirmOriginMismatch?: boolean; conflict?: ConflictStrategy }) => {
       restoreOpts.current = { ...restoreOpts.current, ...extra };
       setView('restoring');
       cleanup.current?.();
@@ -255,7 +254,7 @@ export default function App() {
             setCodeNeeded(true);
             setView('receive');
           } else if (msg.type === 'restored') {
-            setReport({ report: msg.report, backedUp: msg.backedUp });
+            setReport({ report: msg.report });
             setView('restored');
           } else if (msg.type === 'error') {
             toError(msg.message);
@@ -447,10 +446,8 @@ export default function App() {
             conflict={conflict}
             strategy={strategy}
             setStrategy={setStrategy}
-            backup={backup}
-            setBackup={setBackup}
             onContinue={() =>
-              runRestore({ conflict: strategy, backup: strategy === 'replace' ? backup : false, confirmOriginMismatch: true })
+              runRestore({ conflict: strategy, confirmOriginMismatch: true })
             }
             onCancel={reset}
           />
@@ -479,7 +476,7 @@ export default function App() {
       </main>
 
       <footer className="footer">
-        <span className="lock">🔒 Encrypted · Local only · No server</span>
+        <span className="lock">🔒 Local only · No server</span>
         <a className="footer-link" href={FEEDBACK_URL} target="_blank" rel="noopener noreferrer" data-testid="feedback-link">
           Rate or report a problem
         </a>
@@ -577,7 +574,7 @@ function Home({
         <div className="hint" data-testid="transfer-hint">
           {requireCode
             ? 'Creates 2 things: an encrypted file and a transfer code. You need both on the other browser.'
-            : 'Creates one encrypted package to copy or download. The key is inside it, so treat it like a password.'}
+            : 'Creates one package to copy or download. It is not encrypted, so treat it like a password.'}
         </div>
       )}
       <label className="check-row" data-testid="require-code-toggle">
@@ -588,7 +585,7 @@ function Home({
           onChange={(e) => onRequireCode(e.target.checked)}
           data-testid="require-code-checkbox"
         />
-        Require a separate transfer code (more secure)
+        Encrypt with a transfer code (more secure)
       </label>
       <Button testid="receive-session-button" variant="ghost" onClick={onReceive} disabled={collecting}>
         Receive Session
@@ -637,7 +634,7 @@ function Receive({
   const showCode = codeNeeded || hasCode;
   const ready = hasPackage && (!codeNeeded || hasCode);
   const missing = !hasPackage
-    ? 'Add the encrypted package: load the .stpkg file or paste the text above.'
+    ? 'Add the package: load the .stpkg file or paste the text above.'
     : codeNeeded && !hasCode
       ? 'This package needs a transfer code. Enter the code from the sending device.'
       : '';
@@ -658,7 +655,7 @@ function Receive({
       <div className="section-title">Receive session</div>
 
       <div className="section-title" data-testid="receive-step-package">
-        Encrypted package {hasPackage && <span className="step-check">✓</span>}
+        Package {hasPackage && <span className="step-check">✓</span>}
       </div>
       {onOpenTab ? (
         <button className="btn ghost" onClick={onOpenTab} data-testid="load-file-label">
@@ -679,7 +676,7 @@ function Receive({
         <textarea
           className="textarea"
           rows={4}
-          placeholder="…or paste the encrypted package here"
+          placeholder="…or paste the package here"
           value={packageText}
           onChange={(e) => onPackageChange(e.target.value)}
           data-testid="package-textarea"
@@ -757,16 +754,12 @@ function Conflict({
   conflict,
   strategy,
   setStrategy,
-  backup,
-  setBackup,
   onContinue,
   onCancel,
 }: {
   conflict: { destOrigin: string; counts: Record<TransferComponent, number> };
   strategy: ConflictStrategy;
   setStrategy: (s: ConflictStrategy) => void;
-  backup: boolean;
-  setBackup: (v: boolean) => void;
   onContinue: () => void;
   onCancel: () => void;
 }) {
@@ -795,16 +788,9 @@ function Conflict({
         ))}
       </div>
 
-      {strategy === 'replace' && (
-        <label className="check-row" data-testid="backup-toggle">
-          <input type="checkbox" checked={backup} onChange={(e) => setBackup(e.target.checked)} />
-          Back up destination first (encrypted, auto-expires in 30m)
-        </label>
-      )}
-
       <div className="spacer" />
       <Button testid="conflict-continue-button" onClick={onContinue} disabled={strategy === 'cancel'}>
-        {strategy === 'replace' && backup ? 'Back up & Replace' : 'Continue'}
+        Continue
       </Button>
       <Button testid="conflict-cancel-button" variant="ghost" onClick={onCancel}>
         Cancel
@@ -813,8 +799,8 @@ function Conflict({
   );
 }
 
-function Restored({ data, onOpen, onDone }: { data: { report: VerificationReport; backedUp: boolean }; onOpen: () => void; onDone: () => void }) {
-  const { report, backedUp } = data;
+function Restored({ data, onOpen, onDone }: { data: { report: VerificationReport }; onOpen: () => void; onDone: () => void }) {
+  const { report } = data;
   return (
     <div className="gap fade-in">
       <div className="center">
@@ -838,7 +824,6 @@ function Restored({ data, onOpen, onDone }: { data: { report: VerificationReport
 
       <div className={`callout ${report.passed ? 'ok' : 'warn'}`} data-testid="verification-status">
         Verification: {report.passed ? 'Passed' : 'Partial'} · {report.reloaded ? 'page reloaded' : 'reload manually'}
-        {backedUp ? ' · destination backed up' : ''}
       </div>
 
       <div className="callout warn" style={{ fontSize: 10 }}>

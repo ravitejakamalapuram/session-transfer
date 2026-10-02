@@ -3,6 +3,10 @@
 # `npm run build` type-checks (tsc --noEmit) before the Vite build. `test` runs the popup unit tests (node:test).
 app: session-transfer
 test: cd extension && npm ci && npm test
+# Playwright acceptance tests: run after each chrome build in PR checks and again in the release,
+# before packaging. The suite builds extension/dist itself (EXTENSION_DIR is not needed).
+e2e: cd extension && npx playwright install --with-deps chromium && npm run test:e2e
+e2e_in_release: true
 targets:
   - type: chrome
     item_id: fnfmlchbfofjdfeibgdkcibfjjlfcefc

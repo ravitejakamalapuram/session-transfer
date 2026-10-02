@@ -40,7 +40,16 @@ export function pageCollect() {
     for (let i = 0; i < u8.length; i += CH) s += String.fromCharCode.apply(null, u8.subarray(i, i + CH));
     return btoa(s);
   }
+  const stack = new WeakSet();
   async function ser(v: any): Promise<any> {
+    if (v && typeof v === 'object') {
+      if (stack.has(v)) return { t: 'unsupported', v: '[circular]' };
+      stack.add(v);
+      try { return await ser0(v); } finally { stack.delete(v); }
+    }
+    return ser0(v);
+  }
+  async function ser0(v: any): Promise<any> {
     if (v === undefined) return { t: 'undef' };
     if (v === null) return { t: 'null' };
     const tp = typeof v;
@@ -63,6 +72,7 @@ export function pageCollect() {
 
   async function collectIDB() {
     const r: any = { status: 'success', dbs: [], error: undefined };
+    const skipped: string[] = [];
     try {
       if (!indexedDB || !indexedDB.databases) { r.status = 'unsupported'; r.error = 'indexedDB.databases() unavailable'; return r; }
       const infos = await indexedDB.databases();
@@ -100,10 +110,12 @@ export function pageCollect() {
           }
           r.dbs.push({ name: info.name, version, stores });
         } catch (e) {
-          r.status = r.dbs.length ? 'partial' : 'partial';
+          r.status = 'partial';
+          skipped.push(info.name);
         }
       }
     } catch (e) { r.status = 'failed'; r.error = 'IndexedDB read failed'; }
+    if (skipped.length) r.error = `${skipped.length} database(s) could not be read: ${skipped.join(', ')}`;
     return r;
   }
 
@@ -191,8 +203,11 @@ export function pageRestore(args: any) {
     for (const dbData of dbs) {
       try {
         if (strategy === 'replace') await del(dbData.name);
+        // Opening below an existing version fails, so never go lower than what is there.
+        let existingVersion = 0;
+        try { existingVersion = ((await indexedDB.databases()).find((d: any) => d.name === dbData.name) || {}).version || 0; } catch (e) {}
         await new Promise((resolve) => {
-          const op = indexedDB.open(dbData.name, dbData.version || 1);
+          const op = indexedDB.open(dbData.name, Math.max(existingVersion, dbData.version || 1));
           op.onupgradeneeded = () => {
             const db = op.result;
             for (const s of dbData.stores) {
@@ -215,6 +230,7 @@ export function pageRestore(args: any) {
               const names = dbData.stores.map((s: any) => s.name).filter((n: string) => db.objectStoreNames.contains(n));
               if (names.length) {
                 const tx = db.transaction(names, 'readwrite');
+                let puts = 0;
                 for (const s of dbData.stores) {
                   if (!db.objectStoreNames.contains(s.name)) continue;
                   const store = tx.objectStore(s.name);
@@ -223,11 +239,12 @@ export function pageRestore(args: any) {
                     try {
                       if (s.keyPath === null || s.keyPath === undefined) store.put(val, deser(rec.key));
                       else store.put(val);
-                      applied++;
+                      puts++;
                     } catch (e) {}
                   }
                 }
-                await new Promise((r) => { tx.oncomplete = () => r(null); tx.onerror = () => r(null); tx.onabort = () => r(null); });
+                // Only a committed transaction counts; an aborted one wrote nothing.
+                await new Promise((r) => { tx.oncomplete = () => { applied += puts; r(null); }; tx.onerror = () => r(null); tx.onabort = () => r(null); });
               }
             } catch (e) {}
             db.close();
@@ -268,19 +285,53 @@ export function pageRestore(args: any) {
     cacheStorage: { applied: 0, error: undefined },
   };
 
+  // Replace: write the new keys first, then drop the leftovers, so a failure never leaves it empty.
+  function dropStale(store: any, items: any[]) {
+    const keep = new Set(items.map((i: any) => i[0]));
+    for (const k of Object.keys(store)) if (!keep.has(k)) store.removeItem(k);
+  }
   try {
-    if (strategy === 'replace') { try { window.localStorage.clear(); } catch (e) {} }
     for (const [k, v] of state.localStorage || []) { window.localStorage.setItem(k, v); result.localStorage.applied++; }
+    if (strategy === 'replace') dropStale(window.localStorage, state.localStorage || []);
   } catch (e) { result.localStorage.error = 'localStorage write failed'; }
 
   try {
-    if (strategy === 'replace') { try { window.sessionStorage.clear(); } catch (e) {} }
     for (const [k, v] of state.sessionStorage || []) { window.sessionStorage.setItem(k, v); result.sessionStorage.applied++; }
+    if (strategy === 'replace') dropStale(window.sessionStorage, state.sessionStorage || []);
   } catch (e) { result.sessionStorage.error = 'sessionStorage write failed'; }
 
   return (async () => {
     try { result.indexedDB.applied = await restoreIDB(state.indexedDB || []); } catch (e) { result.indexedDB.error = 'IndexedDB write failed'; }
     try { result.cacheStorage.applied = await restoreCaches(state.cacheStorage || []); } catch (e) { result.cacheStorage.error = 'Cache write failed'; }
     return result;
+  })();
+}
+
+/**
+ * Checks what is really in the page now against what was sent. `args` = { localStorage, sessionStorage,
+ * indexedDB: names, cacheStorage: names }. Returns how many of each matched (same key AND value for storage).
+ */
+export function pageVerify(args: any) {
+  function same(store: any, items: any[]) {
+    let n = 0;
+    try { for (const [k, v] of items) if (store.getItem(k) === v) n++; } catch (e) {}
+    return n;
+  }
+  return (async () => {
+    const out: any = {
+      localStorage: same(window.localStorage, args.localStorage || []),
+      sessionStorage: same(window.sessionStorage, args.sessionStorage || []),
+      indexedDB: 0,
+      cacheStorage: 0,
+    };
+    try {
+      const have = new Set((await indexedDB.databases()).map((d: any) => d.name));
+      out.indexedDB = (args.indexedDB || []).filter((n: string) => have.has(n)).length;
+    } catch (e) {}
+    try {
+      const have = new Set(await caches.keys());
+      out.cacheStorage = (args.cacheStorage || []).filter((n: string) => have.has(n)).length;
+    } catch (e) {}
+    return out;
   })();
 }

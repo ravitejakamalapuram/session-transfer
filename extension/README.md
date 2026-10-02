@@ -4,13 +4,14 @@ Securely move an **authenticated browser session** (cookies, localStorage,
 sessionStorage, IndexedDB and Cache Storage) from one Chrome profile / instance /
 device to another with a near one-click experience.
 
-> **Export Session → Encrypt → Transfer → Import → Restore → Verify → Reload → you're logged in.**
+> **Export Session → Transfer → Import → Restore → Verify → Reload → you're logged in.**
 
 - **Manifest V3**, TypeScript (strict), React popup, Vite build.
-- **AES-256-GCM** encryption, always on. By default the key is inside the copied
-  text or downloaded file, so treat it like a password. An optional setting,
-  **Require a separate transfer code (more secure)**, derives the key from a
-  code you send on a second channel (PBKDF2-SHA256).
+- **Plain by default, encrypted on request.** By default the package is not
+  encrypted, so treat the copied text or downloaded file like a password. The
+  setting **Encrypt with a transfer code (more secure)** encrypts it
+  (AES-256-GCM, key derived from a code you send on a second channel,
+  PBKDF2-SHA256, 600,000 iterations).
 - **Fully local** — no server, no account, no telemetry. Packages are only
   accepted by the extension for 5 minutes.
 - **Honest** about what cannot be transferred (WebAuthn/passkeys, hardware credentials, TLS state).
@@ -18,10 +19,10 @@ device to another with a near one-click experience.
 ## How it works
 
 **Source browser** → open the site → click the extension → **Transfer Session**.
-The extension collects state, serializes it (structured-clone-aware), encrypts it, and
-gives you one encrypted package to **copy** or **download** (a `.stpkg` file). With
-the *separate transfer code* setting on, it also gives you a separate **transfer code** (new for each export) to send
-on a different channel. By default there is no code: the key is inside the package, so anyone with the text can restore it until it expires after 5 minutes.
+The extension collects state, serializes it (structured-clone-aware), and
+gives you one package to **copy** or **download** (a `.stpkg` file). With
+the *Encrypt with a transfer code* setting on, the package is encrypted and you also get a **transfer code** (new for each export) to send
+on a different channel. By default there is no encryption and no code: anyone with the text can restore it until it expires after 5 minutes.
 
 **Destination browser** → click the extension → **Receive Session** → paste the package or
 load the file → **Import Session** (enter the code only if the package asks for it). State is validated, restored into the site's own
@@ -46,8 +47,7 @@ src/
 │   ├── service-worker.ts    # orchestration: detect / collect / inspect / restore
 │   ├── cookie-manager.ts    # chrome.cookies collect + restore
 │   ├── injected.ts          # self-contained page functions (collect/restore/detect)
-│   ├── tab-utils.ts         # active/destination tab resolution
-│   └── extension-storage.ts # encrypted, auto-expiring destination backups
+│   └── tab-utils.ts         # active/destination tab resolution
 └── popup/           # React UI (no business logic)
     ├── App.tsx              # screen state machine
     ├── port.ts              # streaming port client
@@ -64,7 +64,7 @@ touching the transfer engine.
 | `cookies` | Read/write HttpOnly & Secure cookies for the selected origin. |
 | `scripting` | Inject on-demand collect/restore functions into the active tab (page-context storage). |
 | `tabs` | Resolve the active tab and open/navigate the destination tab. |
-| `storage` | Store encrypted, auto-expiring local backups before an overwrite. |
+| `storage` | Keep the on-device setting and the short-lived "ready" result while the popup is closed. |
 | `host_permissions: http/https` | The user may transfer *any* origin's session, so a fixed host list is impossible. No `<all_urls>` content scripts run automatically — injection is on-demand and user-initiated only, and state is strictly origin-bound. |
 
 CSP: `script-src 'self'; object-src 'self'; base-uri 'self'` — no `eval`, no remote code.

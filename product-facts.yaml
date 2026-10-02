@@ -22,18 +22,18 @@ facts:
     note: "Moves the web session only. It is a user-saved file; the user carries it to the other browser."
 
   encryption:
-    claim: "Packages are always encrypted with AES-256-GCM (random 12-byte IV). Default: a random 32-byte key per export, stored in the package. With the 'Require a separate transfer code' setting ON: the key is derived from the code with PBKDF2-SHA256, 210,000 iterations, random 16-byte salt."
+    claim: "Packages are NOT encrypted by default. With the 'Encrypt with a transfer code' setting ON: AES-256-GCM (random 12-byte IV), key derived from the code with PBKDF2-SHA256, 600,000 iterations, random 16-byte salt."
     status: safe
     sources: ["README.md:9-13", "PRIVACY.md:21-29", "CHROMEWEBSTORE.md (HOW IT WORKS 2, SECURITY bullet 2)"]
-    code: ["extension/src/core/crypto.ts (encryptPayload: embedded vs code branch; PBKDF2_ITERATIONS = 210_000; KEY_BYTES = 32)", "extension/src/core/crypto.ts (Web Crypto only, no custom crypto)"]
-    note: "Encryption does NOT protect against someone who holds the package in the default mode: the key is inside it. What it gives in the default mode: no plaintext tokens in the clipboard/file for scanners, tamper detection, one crypto path. Say 'encrypted', never 'only you can open it' for the default mode."
+    code: ["extension/src/core/crypto.ts (encryptPayload: none vs code branch; PBKDF2_ITERATIONS = 600_000)", "extension/src/core/crypto.ts (Web Crypto only, no custom crypto)"]
+    note: "Default mode has no encryption and no tamper detection: whoever holds the text has the session. Never say 'encrypted' or 'AES' about the default mode. v1.2.x 'embedded' packages are still readable by the receiver."
 
   key_mode_default:
-    claim: "Default (setting OFF): the key is inside the copied text / downloaded file, so one step moves the session. The Ready screen warns that anyone with the text can restore the session until the shown time. Setting 'Require a separate transfer code (more secure)' ON gives the two-channel flow: package + a separate code."
+    claim: "Default (setting OFF): the package is plain (not encrypted), so one step moves the session. The Ready screen warns that anyone with the text can restore the session until the shown time. Setting 'Encrypt with a transfer code (more secure)' ON gives the two-channel flow: encrypted package + a separate code."
     status: narrow
     sources: ["CHANGELOG.md [Unreleased]", "extension/docs/threat-model.md #1, #2, #8"]
-    code: ["extension/src/popup/App.tsx (SETTING_KEY 'settings.requireTransferCode', loadRequireCode, require-code-checkbox, collect sends requireCode)", "extension/src/background/service-worker.ts (handleCollect: requireCode ? 'code' : 'embedded')", "extension/src/popup/ready.tsx (embedded-warning vs two-step screen)"]
-    note: "Setting is per browser profile (chrome.storage.local), absent = OFF. In the default mode a leaked copy of the text IS the session: do not say 'a leaked package is useless without the code' for it. Both browsers need the new version: an older receiver cannot read a version 2 default-mode package."
+    code: ["extension/src/popup/App.tsx (SETTING_KEY 'settings.requireTransferCode', loadRequireCode, require-code-checkbox, collect sends requireCode)", "extension/src/background/service-worker.ts (handleCollect: requireCode ? 'code' : 'none')", "extension/src/popup/ready.tsx (embedded-warning vs two-step screen)"]
+    note: "Setting is per browser profile (chrome.storage.local), absent = OFF. In the default mode a leaked copy of the text IS the session: do not say 'a leaked package is useless without the code' for it. Both browsers need the new version: an older receiver cannot read a default-mode (plain) package."
 
   transfer_code:
     claim: "Optional (default OFF). When ON, each export makes a new random code (12 characters from a 31-letter/digit set, shown as ABCD-EFGH-JKMN) and the package cannot be decrypted without it. When OFF there is no code."
@@ -74,13 +74,6 @@ facts:
     status: safe
     sources: ["CHROMEWEBSTORE.md:38"]
     code: ["extension/src/core/types.ts (ConflictStrategy)", "extension/src/popup/App.tsx (useState strategy default 'cancel'; Conflict options text)", "extension/src/background/service-worker.ts (handleRestore: strategy; cancel leaves destination unchanged)"]
-
-  backup:
-    claim: "Before a Replace, the user can keep an encrypted backup of the destination state in chrome.storage.local; it auto-expires after 30 minutes."
-    status: narrow
-    sources: ["PRIVACY.md:27-29", "CHROMEWEBSTORE.md:38,60,79"]
-    code: ["extension/src/background/extension-storage.ts (BACKUP_TTL_MS = 30 * 60 * 1000; purgeExpiredBackups on expiry and before each new backup; createBackup uses code mode)", "extension/src/background/service-worker.ts (onInstalled purge; handleRestore backup only when the destination has data, failure ignored)", "extension/src/popup/App.tsx (backup checkbox, on by default; label 'auto-expires in 30m')"]
-    note: "Backup is best-effort and a different thing from the 5-minute package expiry. Backups use code mode. The backup's decryption code is stored in the same record (createBackup in extension-storage.ts, comment says so). So 'encrypted' is true but it protects against casual reading of the file, not against anyone with access to the browser profile. Do not call the backup 'secure' or 'protected by a code only you know'."
 
   not_transferable:
     claim: "Passkeys/WebAuthn, hardware-backed credentials, OS credential stores and TLS-bound session state cannot be transferred; the extension says so in the popup."
@@ -137,8 +130,10 @@ do_not_claim:
     why: "No source."
   - claim: "Works in Firefox, Safari or Edge"
     why: "Chrome extension, Manifest V3. Other browsers are not tested in this repo."
-  - claim: "Backups are secure / protected by your code"
-    why: "The code is stored with the backup; see backup."
+  - claim: "Packages are always encrypted / AES-256 by default"
+    why: "Default packages are plain; encryption is the opt-in 'Encrypt with a transfer code' setting."
+  - claim: "The extension backs up the destination session"
+    why: "Backups were removed in 1.3.0."
 
 discrepancies_found:
   - where: "store screenshots (extension/store-assets/screenshot-transfer.png, screenshot-receive.png) and store-assets/shots.html"

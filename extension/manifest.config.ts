@@ -6,7 +6,7 @@ import pkg from './package.json' with { type: 'json' };
 //   scripting    -> inject on-demand collector/restorer functions into the active tab to read/write
 //                   localStorage, sessionStorage, IndexedDB and Cache Storage (origin-scoped, page context).
 //   tabs         -> resolve the active tab's URL/title and open/navigate the destination tab on restore.
-//   storage      -> persist encrypted, auto-expiring local backups of destination state before overwrite.
+//   storage      -> persist the on-device setting and the short-lived ready result.
 //   host_permissions http/https -> the product must read & restore storage/cookies for ANY origin the
 //                   user chooses; a fixed host list is impossible. No cross-origin data is ever mixed
 //                   (strict origin binding). No <all_urls> content scripts run automatically -- injection
@@ -16,7 +16,7 @@ export default defineManifest({
   name: 'Session Transfer',
   version: pkg.version,
   description:
-    'Securely move an authenticated browser session between Chrome profiles or devices. AES-256-GCM encrypted, fully local, no server.',
+    'Securely move an authenticated browser session between Chrome profiles or devices. Optional encryption, fully local, no server.',
   action: {
     default_popup: 'index.html',
     default_title: 'Session Transfer',

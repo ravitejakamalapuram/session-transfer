@@ -17,8 +17,8 @@ permissions:
     security_impact: high # config/security.yaml: tabs is high-risk when used to read URLs, not just counts/titles
   - permission: storage
     required: true
-    reason: "Persist encrypted, auto-expiring (30 min) local backups of destination state before an optional overwrite (chrome.storage.local); hold an in-memory-only draft of the receive flow (chrome.storage.session)"
-    data_access: [encrypted_session_backup_local]
+    reason: "Persist the on-device setting (chrome.storage.local); hold an in-memory-only draft of the receive flow (chrome.storage.session)"
+    data_access: [local_setting]
     security_impact: medium
   - permission: "http://*/*"
     required: true

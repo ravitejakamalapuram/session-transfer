@@ -4,12 +4,13 @@ A Manifest V3 Chrome extension that securely moves an **authenticated browser
 session** (cookies, localStorage, sessionStorage, IndexedDB and Cache Storage)
 from one Chrome profile, browser or device to another.
 
-> Export Session → Encrypt → Transfer → Import → Restore → Verify → Reload → you're logged in.
+> Export Session → Transfer → Import → Restore → Verify → Reload → you're logged in.
 
-- **AES-256-GCM** encryption, always on. By default the key is inside the copied
-  text or downloaded file, so treat it like a password. An optional setting,
-  **Require a separate transfer code (more secure)**, derives the key from a
-  code you send on a second channel (PBKDF2-SHA256).
+- **Plain by default, encrypted on request.** By default the package is not
+  encrypted, so treat the copied text or downloaded file like a password. The
+  setting **Encrypt with a transfer code (more secure)** encrypts it
+  (AES-256-GCM, key derived from a code you send on a second channel,
+  PBKDF2-SHA256, 600,000 iterations).
 - **Fully local** — no server, no account, no telemetry. Packages are only
   accepted by the extension for 5 minutes.
 - **Origin-bound** — a package can only be restored into its own website origin.

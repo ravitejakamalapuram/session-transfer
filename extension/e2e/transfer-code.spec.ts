@@ -38,7 +38,6 @@ async function importIt(popup: Page) {
   await expect(conflict.or(done)).toBeVisible({ timeout: 30_000 });
   if (await conflict.isVisible()) {
     await conflict.click();
-    await popup.getByTestId('backup-toggle').locator('input').uncheck();
     await popup.getByTestId('conflict-continue-button').click();
   }
   await expect(done).toBeVisible({ timeout: 30_000 });
@@ -62,7 +61,7 @@ test('2. code OFF: copy text -> receiver sees no code field -> session restored'
   await exportSession(a.popup);
   await a.popup.getByTestId('copy-package-button').click();
   const text = await clipboard(a.popup);
-  expect(JSON.parse(text)).toMatchObject({ version: 2, keyMode: 'embedded' });
+  expect(JSON.parse(text)).toMatchObject({ version: 2, keyMode: 'none' });
 
   const r = await b.openPopup(FAST);
   // verifier: the receiver does NOT have the sender's data before the import
@@ -157,7 +156,7 @@ for (const requireCode of [false, true]) {
     await exportSession(a.popup);
     await a.popup.getByTestId('copy-package-button').click();
     const pkg = JSON.parse(await clipboard(a.popup));
-    expect(pkg.keyMode).toBe(requireCode ? 'code' : 'embedded');
+    expect(pkg.keyMode).toBe(requireCode ? 'code' : 'none');
     // A real package, moved into the past (expiry is checked before anything is decrypted).
     pkg.createdAt -= 10 * 60_000;
     pkg.expiresAt -= 10 * 60_000;

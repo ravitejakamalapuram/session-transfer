@@ -4,6 +4,31 @@ All notable changes to Session Transfer are documented here. The extension
 version comes from `extension/package.json` and is written into the built
 manifest.
 
+## [1.3.0]
+
+### Changed
+- **Packages are plain by default; encryption is the opt-in setting.** The
+  setting is now "Encrypt with a transfer code (more secure)". Off (default):
+  one unencrypted package, no code. On: AES-256-GCM with a key derived from a
+  code shown after export (PBKDF2-SHA256, now 600,000 iterations). **Update
+  both browsers**: an older receiver cannot read a plain package. Packages
+  from 1.2.x and earlier still import.
+- Restore now checks the real result: after writing, it reads back each
+  cookie and storage key and compares values, so existing data no longer
+  makes a failed restore look successful. Each part reports success, partial
+  or failed from what was actually written.
+- Replace writes the new state first and then removes leftovers, so a failure
+  halfway no longer leaves the site empty. The page only reloads if something
+  was written.
+- IndexedDB: circular values no longer abort the whole capture, databases
+  that could not be read are named in the result, and restore no longer opens
+  a database below its existing version. Writes count only once committed.
+- The 100 MB limit is now measured on the finished package.
+
+### Removed
+- The destination backup before Replace (it stored its own decryption code and
+  could not be restored). Backups left by 1.2.x are deleted on update.
+
 ## [Unreleased]
 
 ### Changed

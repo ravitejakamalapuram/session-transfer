@@ -19,7 +19,7 @@ import {
 // ArrayBufferLike). Our byte arrays are always plain ArrayBuffer-backed.
 const bs = (u: Uint8Array): BufferSource => u as unknown as BufferSource;
 
-const PBKDF2_ITERATIONS = 210_000;
+const PBKDF2_ITERATIONS = 600_000;
 const KEY_BYTES = 32;
 /** A package may not claim to live longer than a transfer does (5 min) plus 30 s clock skew. */
 export const MAX_PACKAGE_LIFETIME_MS = 5 * 60 * 1000 + 30 * 1000;
@@ -57,7 +57,7 @@ export async function sha256Base64(data: Uint8Array): Promise<string> {
   return bytesToBase64(new Uint8Array(digest));
 }
 
-async function deriveKey(code: string, salt: Uint8Array): Promise<CryptoKey> {
+async function deriveKey(code: string, salt: Uint8Array, iterations: number): Promise<CryptoKey> {
   const baseKey = await crypto.subtle.importKey(
     'raw',
     bs(strToBytes(normalizeCode(code))),
@@ -66,7 +66,7 @@ async function deriveKey(code: string, salt: Uint8Array): Promise<CryptoKey> {
     ['deriveKey'],
   );
   return crypto.subtle.deriveKey(
-    { name: 'PBKDF2', salt: bs(salt), iterations: PBKDF2_ITERATIONS, hash: 'SHA-256' },
+    { name: 'PBKDF2', salt: bs(salt), iterations, hash: 'SHA-256' },
     baseKey,
     { name: 'AES-GCM', length: 256 },
     false,
@@ -109,9 +109,10 @@ function headerAad(h: PackageHeader): Uint8Array {
 export async function encryptPayload(
   payload: SessionPayload,
   ttlMs: number,
-  keyMode: KeyMode = 'embedded',
+  keyMode: KeyMode = 'none',
   now: number = Date.now(),
 ): Promise<EncryptResult> {
+  const json = JSON.stringify(payload);
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const origin = payload.source.origin;
 
@@ -125,6 +126,16 @@ export async function encryptPayload(
     transferId: randomId(),
   };
 
+  if (keyMode === 'none') {
+    const plain: EncryptedPackage = {
+      ...header,
+      alg: 'none',
+      iv: '',
+      ciphertext: bytesToBase64(strToBytes(json)),
+    };
+    return { pkg: plain, code: null };
+  }
+
   let key: CryptoKey;
   let code: string | null = null;
   const extra: Partial<EncryptedPackage> = {};
@@ -135,7 +146,7 @@ export async function encryptPayload(
   } else {
     code = generateTransferCode();
     const salt = crypto.getRandomValues(new Uint8Array(16));
-    key = await deriveKey(code, salt);
+    key = await deriveKey(code, salt, PBKDF2_ITERATIONS);
     extra.kdf = 'PBKDF2-SHA256';
     extra.iterations = PBKDF2_ITERATIONS;
     extra.salt = bytesToBase64(salt);
@@ -144,7 +155,7 @@ export async function encryptPayload(
   const cipherBuf = await crypto.subtle.encrypt(
     { name: 'AES-GCM', iv: bs(iv), additionalData: bs(headerAad(header)) },
     key,
-    bs(strToBytes(JSON.stringify(payload))),
+    bs(strToBytes(json)),
   );
 
   const pkg: EncryptedPackage = {
@@ -200,13 +211,19 @@ export async function decryptPayload(
 ): Promise<SessionPayload> {
   checkPackage(pkg, opts.now, opts.maxLifetimeMs);
 
+  if (pkg.keyMode === 'none') return parsePayload(base64ToBytes(pkg.ciphertext), pkg);
+
   let key: CryptoKey;
   let aad: Uint8Array;
   try {
     if (pkg.version === LEGACY_PACKAGE_VERSION || pkg.keyMode === 'code') {
       if (!code || !code.trim()) throw new DecryptError('Enter the transfer code from the sending browser.');
       if (!pkg.salt) throw new DecryptError('Package is incomplete or damaged.');
-      key = await deriveKey(code, base64ToBytes(pkg.salt));
+      const iterations = pkg.iterations ?? 210_000;
+      if (!Number.isInteger(iterations) || iterations < 1 || iterations > 2_000_000) {
+        throw new DecryptError('Package is incomplete or damaged.');
+      }
+      key = await deriveKey(code, base64ToBytes(pkg.salt), iterations);
       aad = pkg.version === LEGACY_PACKAGE_VERSION ? strToBytes(pkg.origin) : headerAad(pkg);
     } else if (pkg.keyMode === 'embedded') {
       const raw = pkg.key ? base64ToBytes(pkg.key) : null;
@@ -233,7 +250,16 @@ export async function decryptPayload(
       pkg.keyMode === 'embedded' ? 'Package is damaged or was changed.' : 'Incorrect code or corrupted package.',
     );
   }
-  const payload = JSON.parse(bytesToStr(new Uint8Array(plainBuf))) as SessionPayload;
+  return parsePayload(new Uint8Array(plainBuf), pkg);
+}
+
+function parsePayload(bytes: Uint8Array, pkg: EncryptedPackage): SessionPayload {
+  let payload: SessionPayload;
+  try {
+    payload = JSON.parse(bytesToStr(bytes)) as SessionPayload;
+  } catch {
+    throw new DecryptError('Package is incomplete or damaged.');
+  }
   if (payload.source?.origin !== pkg.origin) {
     throw new DecryptError('Origin integrity check failed.');
   }
