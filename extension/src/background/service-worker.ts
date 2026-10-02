@@ -2,11 +2,13 @@
 // All heavy work happens here (never in the popup) and progress is streamed back
 // over a long-lived Port so the popup UI stays responsive.
 
-import { pageCollect, pageDetect, pageRestore, pageVerify } from './injected';
+import { pageCollect, pageDetect, pageLocalStorage, pageRestore, pageVerify } from './injected';
 import { CookieRestoreResult, collectCookies, countCookies, countMatchingCookies, restoreCookies } from './cookie-manager';
 import { getActiveTab, originOf, reloadTab, resolveDestinationTab } from './tab-utils';
 import { checkPackage, decryptPayload, encryptPayload, packageNeedsCode } from '../core/crypto';
+import { LARGE_WARN_BYTES, MAX_PACKAGE_BYTES, TRANSFER_TTL_MS } from '../core/limits';
 import { logger } from '../core/logger';
+import { buildStorageState, parseExtraDomains } from '../core/storage-state';
 import { CIPHERTEXT_CHUNK_CHARS, DetectInfo, OpRequest, OpResponse, PORT_NAME } from '../core/messages';
 import {
   CapturedCache,
@@ -24,11 +26,8 @@ import {
   VerificationLine,
 } from '../core/types';
 
-const TRANSFER_TTL_MS = 5 * 60 * 1000; // short expiration (replay window)
-const MAX_PACKAGE_BYTES = 100 * 1024 * 1024; // 100 MB hard ceiling
-const LARGE_WARN_BYTES = 20 * 1024 * 1024;
 
-type PagedFunc = typeof pageDetect | typeof pageCollect | typeof pageRestore | typeof pageVerify;
+type PagedFunc = typeof pageDetect | typeof pageCollect | typeof pageRestore | typeof pageVerify | typeof pageLocalStorage;
 
 async function inject<T>(tabId: number, func: PagedFunc, arg?: unknown): Promise<T> {
   const [res] = await chrome.scripting.executeScript({
@@ -101,7 +100,7 @@ function pageResultStatus(comp: TransferComponent, raw: any): TransferComponentR
   return { component: comp, status: raw.status, itemCount: count, error: raw.error };
 }
 
-async function handleCollect(port: chrome.runtime.Port, requireCode: boolean) {
+async function handleCollect(port: chrome.runtime.Port, requireCode: boolean, extraDomains: string[]) {
   const tab = await getActiveTab();
   const origin = originOf(tab?.url);
   if (!tab || !origin || tab.id == null) {
@@ -114,7 +113,7 @@ async function handleCollect(port: chrome.runtime.Port, requireCode: boolean) {
   send(port, { type: 'progress', component: 'cookies', status: 'running' });
   let cookies: SessionPayload['state']['cookies'] = [];
   try {
-    cookies = await collectCookies(tab.url!);
+    cookies = await collectCookies(tab.url!, extraDomains);
     const r: TransferComponentResult = { component: 'cookies', status: 'success', itemCount: cookies.length };
     results.push(r);
     send(port, { type: 'progress', component: 'cookies', status: 'success', itemCount: cookies.length });
@@ -182,6 +181,33 @@ async function handleCollect(port: chrome.runtime.Port, requireCode: boolean) {
   if (!send(port, { type: 'collected', pkg: header, code, results, unsupported: NON_TRANSFERABLE, sizeBytes })) {
     send(port, { type: 'error', message: 'The session was collected but could not be handed to the window. Please try again.' });
   }
+}
+
+// ---------------------------------------------------------------- export for Playwright
+async function handleExportState(port: chrome.runtime.Port, extraDomains: string[]) {
+  const tab = await getActiveTab();
+  const origin = originOf(tab?.url);
+  if (!tab || !origin || tab.id == null) {
+    send(port, { type: 'error', message: 'No transferable website in the active tab.' });
+    return;
+  }
+  const cookies = await collectCookies(tab.url!, extraDomains).catch(() => []);
+  let items: [string, string][] = [];
+  try {
+    items = (await inject<{ items: [string, string][] }>(tab.id, pageLocalStorage)).items;
+  } catch {
+    /* page blocked: cookies only */
+  }
+  const { state, skippedPartitioned } = buildStorageState(origin, cookies, items);
+  logger.info('Exported storageState', { origin, cookies: state.cookies.length });
+  send(port, {
+    type: 'stateExported',
+    json: JSON.stringify(state, null, 2),
+    host: new URL(origin).hostname,
+    cookies: state.cookies.length,
+    localStorage: items.length,
+    skippedPartitioned,
+  });
 }
 
 // ---------------------------------------------------------------- inspect
@@ -312,7 +338,7 @@ async function handleRestore(port: chrome.runtime.Port, req: Extract<OpRequest, 
   }
 
   // Verify what is really there now (same keys AND values), BEFORE the reload: apps often rewrite state on load.
-  const matchedCookies = await countMatchingCookies(destUrl, cookieRes.written);
+  const matchedCookies = await countMatchingCookies(cookieRes.written);
   let matched = { localStorage: 0, sessionStorage: 0, indexedDB: 0, cacheStorage: 0 };
   try {
     matched = await inject(tab.id, pageVerify, {
@@ -397,7 +423,8 @@ chrome.runtime.onConnect.addListener((port) => {
       }
       switch (msg.type) {
         case 'detect': await handleDetect(port); break;
-        case 'collect': await handleCollect(port, msg.requireCode === true); break;
+        case 'collect': await handleCollect(port, msg.requireCode === true, parseExtraDomains((msg.extraDomains ?? []).join(' ')).domains); break;
+        case 'exportState': await handleExportState(port, parseExtraDomains((msg.extraDomains ?? []).join(' ')).domains); break;
         case 'inspect': await handleInspect(port, msg); break;
         case 'restore': await handleRestore(port, msg); break;
       }

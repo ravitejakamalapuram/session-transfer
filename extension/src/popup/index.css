@@ -211,3 +211,7 @@ html, body {
   text-align: center; background: var(--code-bg); border-radius: 8px; padding: 8px; user-select: all;
 }
 .hint.expired { color: var(--rose); }
+
+.more { font-size: 11px; color: var(--text-2); }
+.more summary { cursor: pointer; padding: 4px 0; }
+.more[open] summary { margin-bottom: 6px; }

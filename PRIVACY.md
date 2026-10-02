@@ -36,7 +36,6 @@ user-selected website between browser environments.
 - `cookies` — read and restore cookies for the selected site.
 - `scripting` — run a one-time, user-initiated collect/restore function in the
   selected tab for localStorage, sessionStorage, IndexedDB and Cache Storage.
-- `tabs` — identify the active tab's origin and reload the destination tab.
 - `storage` — hold the on-device "Encrypt with a transfer code" setting and
   the short-lived "ready" result while the popup is closed.
 - Host access — sessions can be transferred for any site the user is logged

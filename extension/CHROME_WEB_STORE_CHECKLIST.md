@@ -7,7 +7,7 @@
 - [x] Strict CSP (`script-src 'self'`), no `eval` / `new Function` / remote scripts / inline scripts.
 
 ## Permissions
-- [x] Minimal permission set: `cookies`, `scripting`, `tabs`, `storage`.
+- [x] Minimal permission set: `cookies`, `scripting`, `storage`.
 - [x] `host_permissions` limited to `http://*/*`, `https://*/*` (no `<all_urls>` content scripts).
 - [x] Each permission justified in `README.md` and `manifest.config.ts`.
 - [ ] Prepare a clear **permission justification** paragraph for the store review form

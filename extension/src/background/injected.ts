@@ -32,6 +32,18 @@ export function pageDetect() {
   })();
 }
 
+/** localStorage only (for the Playwright export). */
+export function pageLocalStorage() {
+  const items: [string, string][] = [];
+  try {
+    for (let i = 0; i < window.localStorage.length; i++) {
+      const k = window.localStorage.key(i)!;
+      items.push([k, window.localStorage.getItem(k)!]);
+    }
+  } catch (e) {}
+  return { items };
+}
+
 /** Full origin-scoped state collection with per-mechanism results. */
 export function pageCollect() {
   function b64(u8: any) {

@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { runOp } from './port';
+import { COLLECT_TIMEOUT_MS, DRAFT_TTL_MS } from '../core/limits';
+import { parseExtraDomains } from '../core/storage-state';
 import {
   ALL_COMPONENTS,
   Button,
@@ -36,7 +38,6 @@ type View =
 type ProgressMap = Partial<Record<TransferComponent, { status: TransferStatus; itemCount?: number }>>;
 
 // Large sessions take ~1 minute to encrypt; past this the flow is treated as stuck.
-const COLLECT_TIMEOUT_MS = 3 * 60 * 1000;
 const COLLECT_TIMEOUT_MESSAGE =
   'Collecting the session took too long and was stopped. The page may hold a very large amount of data. Please try again.';
 
@@ -60,7 +61,6 @@ const FEEDBACK_URL = 'https://chromewebstore.google.com/detail/fnfmlchbfofjdfeib
 // kept in chrome.storage.session (memory only, extension-only) until it is used or
 // abandoned, and file loading happens in a full tab where the picker can't close it.
 const DRAFT_KEY = 'receiveDraft';
-const DRAFT_TTL_MS = 30 * 60 * 1000;
 const IS_RECEIVE_TAB = location.hash === '#receive';
 // A package this big is not shown in (or drafted from) the textarea: rendering and
 // serialising tens of MB on every change froze the receiver tab.
@@ -102,6 +102,8 @@ export default function App() {
   const [saved, setSaved] = useState<Saved>(NOTHING_SAVED);
   const [guard, setGuard] = useState(false);
   const [requireCode, setRequireCode] = useState(false);
+  const [extraDomains, setExtraDomains] = useState('');
+  const [exportNote, setExportNote] = useState('');
   const [codeNeeded, setCodeNeeded] = useState(false);
   const savedRef = useRef<Saved>(NOTHING_SAVED);
   savedRef.current = saved;
@@ -195,7 +197,7 @@ export default function App() {
       toError(message, startCollect);
     };
     timer = setTimeout(() => fail(COLLECT_TIMEOUT_MESSAGE), COLLECT_TIMEOUT_MS);
-    cleanup.current = runOp({ type: 'collect', requireCode }, (msg: OpResponse) => {
+    cleanup.current = runOp({ type: 'collect', requireCode, extraDomains: parseExtraDomains(extraDomains).domains }, (msg: OpResponse) => {
       if (msg.type === 'progress') {
         setProgress((p) => ({ ...p, [msg.component]: { status: msg.status, itemCount: msg.itemCount } }));
       } else if (msg.type === 'ciphertextChunk') {
@@ -216,7 +218,7 @@ export default function App() {
         fail(msg.message);
       }
     });
-  }, [requireCode]);
+  }, [requireCode, extraDomains]);
 
   // ---------------------------------------------------------------- inspect
   const startInspect = useCallback(() => {
@@ -264,6 +266,31 @@ export default function App() {
     },
     [packageText, code],
   );
+
+  // ---------------------------------------------------------------- export for Playwright
+  const exportState = () => {
+    setExportNote('');
+    const stop = runOp({ type: 'exportState', extraDomains: parseExtraDomains(extraDomains).domains }, (msg: OpResponse) => {
+      if (msg.type === 'stateExported') {
+        const blob = new Blob([msg.json], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `storageState-${msg.host}.json`;
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(url), 2000);
+        setExportNote(
+          `Saved storageState-${msg.host}.json: ${msg.cookies} cookies, ${msg.localStorage} localStorage items` +
+            (msg.skippedPartitioned ? `, ${msg.skippedPartitioned} partitioned cookies left out` : '') +
+            '. It holds live logins: treat it like a password.',
+        );
+        stop();
+      } else if (msg.type === 'error') {
+        setExportNote(msg.message);
+        stop();
+      }
+    });
+  };
 
   // ---------------------------------------------------------------- helpers
   const downloadPackage = () => {
@@ -372,6 +399,10 @@ export default function App() {
             collecting={collecting}
             progress={progress}
             onTransfer={startCollect}
+            extraDomains={extraDomains}
+            setExtraDomains={setExtraDomains}
+            onExportState={exportState}
+            exportNote={exportNote}
             onReceive={() => {
               clearDraft();
               setPackageText('');
@@ -503,6 +534,10 @@ function Home({
   collecting,
   progress,
   onTransfer,
+  extraDomains,
+  setExtraDomains,
+  onExportState,
+  exportNote,
   onReceive,
 }: {
   detect: DetectInfo;
@@ -511,8 +546,14 @@ function Home({
   collecting: boolean;
   progress: ProgressMap;
   onTransfer: () => void;
+  extraDomains: string;
+  setExtraDomains: (v: string) => void;
+  onExportState: () => void;
+  exportNote: string;
   onReceive: () => void;
 }) {
+  const extra = parseExtraDomains(extraDomains);
+  const blocked = !detect.supported || collecting || extra.invalid.length > 0;
   return (
     <div className="gap fade-in">
       <div className="origin-card" data-testid="origin-card">
@@ -550,7 +591,7 @@ function Home({
 
       <div className="spacer" />
 
-      <Button testid="transfer-session-button" onClick={onTransfer} disabled={!detect.supported || collecting}>
+      <Button testid="transfer-session-button" onClick={onTransfer} disabled={blocked}>
         {collecting ? (
           <>
             <span className="spinner" /> Collecting session…
@@ -590,6 +631,36 @@ function Home({
       <Button testid="receive-session-button" variant="ghost" onClick={onReceive} disabled={collecting}>
         Receive Session
       </Button>
+      <details className="more" data-testid="more-options">
+        <summary>More options</summary>
+        <div className="gap-sm">
+          <label className="hint" htmlFor="extra-domains">
+            Also include cookies from other sites (for sign-in pages), e.g. accounts.example.com. Up to 5 host names.
+          </label>
+          <input
+            id="extra-domains"
+            className="input"
+            data-testid="extra-domains-input"
+            value={extraDomains}
+            placeholder="accounts.example.com, login.example.org"
+            onChange={(e) => setExtraDomains(e.target.value)}
+          />
+          {extra.invalid.length > 0 && (
+            <div className="callout danger" data-testid="extra-domains-error">
+              Not a plain host name: {extra.invalid.join(', ')}
+            </div>
+          )}
+          <Button testid="export-state-button" variant="ghost" onClick={onExportState} disabled={blocked}>
+            Export for Playwright (.json)
+          </Button>
+          <div className="hint">Saves this site's cookies and localStorage as a Playwright storageState file for tests.</div>
+          {exportNote && (
+            <div className="callout info" data-testid="export-note">
+              {exportNote}
+            </div>
+          )}
+        </div>
+      </details>
       <div className="hint">Cookies, storage, IndexedDB &amp; caches are captured for this origin only.</div>
     </div>
   );

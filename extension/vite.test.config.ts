@@ -5,7 +5,7 @@ import { defineConfig } from 'vite';
 export default defineConfig({
   build: {
     ssr: true,
-    rollupOptions: { input: { 'ready.test': 'src/popup/ready.test.tsx', 'crypto.test': 'src/core/crypto.test.ts' } },
+    rollupOptions: { input: { 'ready.test': 'src/popup/ready.test.tsx', 'crypto.test': 'src/core/crypto.test.ts', 'storage-state.test': 'src/core/storage-state.test.ts' } },
     outDir: 'test-dist',
     emptyOutDir: true,
     target: 'node20',
