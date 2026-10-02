@@ -29,7 +29,6 @@ export type OpRequest =
       packageText: string;
       code?: string;
       conflict?: ConflictStrategy;
-      backup?: boolean;
       confirmOriginMismatch?: boolean;
     };
 
@@ -43,7 +42,7 @@ export type OpResponse =
   | {
       type: 'collected';
       pkg: Omit<EncryptedPackage, 'ciphertext'>;
-      /** The separate transfer code; null when the key is embedded in the package. */
+      /** The separate transfer code; null when the package is not encrypted. */
       code: string | null;
       results: TransferComponentResult[];
       unsupported: string[];
@@ -54,7 +53,7 @@ export type OpResponse =
   | { type: 'codeRequired'; expiresAt: number; origin: string }
   | { type: 'conflict'; destOrigin: string; counts: Record<TransferComponent, number> }
   | { type: 'originMismatch'; packageOrigin: string; destOrigin: string }
-  | { type: 'restored'; report: VerificationReport; backedUp: boolean }
+  | { type: 'restored'; report: VerificationReport }
   | { type: 'error'; message: string };
 
 export interface DetectInfo {

@@ -27,7 +27,41 @@ const payload = (origin = 'https://example.test'): SessionPayload => ({
 const rejects = (p: Promise<unknown>, re: RegExp) => assert.rejects(p, (e: Error) => re.test(e.message));
 const clone = (p: EncryptedPackage): EncryptedPackage => JSON.parse(JSON.stringify(p));
 
-describe('embedded mode (default)', () => {
+describe('plain mode (default, no encryption)', () => {
+  it('round-trips with no code, no key and no encryption', async () => {
+    const { pkg, code } = await encryptPayload(payload(), TTL, 'none', T0);
+    assert.equal(code, null);
+    assert.equal(pkg.keyMode, 'none');
+    assert.equal(pkg.alg, 'none');
+    assert.equal(packageNeedsCode(pkg), false);
+    assert.equal(pkg.key, undefined);
+    const out = await decryptPayload(pkg, null, { now: T0 + 1000 });
+    assert.equal(out.state.localStorage[0][1], 'secret-value');
+  });
+
+  it('is the default mode', async () => {
+    const { pkg } = await encryptPayload(payload(), TTL, undefined, T0);
+    assert.equal(pkg.keyMode, 'none');
+  });
+
+  it('refuses a payload whose origin differs from the package origin, and garbage', async () => {
+    const { pkg } = await encryptPayload(payload(), TTL, 'none', T0);
+    const bad = clone(pkg); bad.origin = 'https://evil.test';
+    await rejects(decryptPayload(bad, null, { now: T0 + 1000 }), /Origin integrity/);
+    const junk = clone(pkg); junk.ciphertext = Buffer.from('not json').toString('base64');
+    await rejects(decryptPayload(junk, null, { now: T0 + 1000 }), /incomplete or damaged/);
+  });
+});
+
+describe('code mode limits', () => {
+  it('refuses an absurd PBKDF2 iteration count (denial of service)', async () => {
+    const { pkg, code } = await encryptPayload(payload(), TTL, 'code', T0);
+    const bad = clone(pkg); bad.iterations = 1_000_000_000;
+    await rejects(decryptPayload(bad, code, { now: T0 + 1000 }), /incomplete or damaged/);
+  });
+});
+
+describe('embedded mode (read-only legacy, v1.2.x packages)', () => {
   it('round-trips with no code and returns code = null', async () => {
     const { pkg, code } = await encryptPayload(payload(), TTL, 'embedded', T0);
     assert.equal(code, null);
@@ -99,14 +133,14 @@ describe('code mode', () => {
 });
 
 describe('expiry, lifetime and version (checked before any decrypt)', () => {
-  for (const mode of ['embedded', 'code'] as const) {
+  for (const mode of ['none', 'embedded', 'code'] as const) {
     it(`${mode}: refused after expiresAt, accepted right before`, async () => {
       const { pkg, code } = await encryptPayload(payload(), TTL, mode, T0);
       await decryptPayload(pkg, code, { now: T0 + TTL });
       await rejects(decryptPayload(pkg, code, { now: T0 + TTL + 1 }), /expired/);
     });
 
-    it(`${mode}: expired is reported even when the package is also tampered`, async () => {
+    if (mode !== 'none') it(`${mode}: expired is reported even when the package is also tampered`, async () => {
       const { pkg } = await encryptPayload(payload(), TTL, mode, T0);
       const bad = clone(pkg); bad.origin = 'https://evil.test'; bad.ciphertext = 'AAAA';
       await rejects(decryptPayload(bad, 'WRONG-CODE-0000', { now: T0 + TTL + 1 }), /expired/);

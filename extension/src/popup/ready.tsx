@@ -164,7 +164,7 @@ export function Ready({
 
           <div className={`step ${saved.package ? 'done' : ''}`} data-testid="step-package">
             <div className="step-head">
-              <span className="step-title">① Encrypted package <span className="step-what">the session</span></span>
+              <span className="step-title">① Session package <span className="step-what">the session</span></span>
               <span className="step-status" data-testid="package-status">{saved.package ? '✓ saved' : 'not saved'}</span>
             </div>
             <div className="step-actions">

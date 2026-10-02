@@ -19,7 +19,7 @@
 ## 2. Store Listing Copy
 
 ### Short Description (max 132 characters)
-> Move logged-in browser sessions between Chrome profiles or devices. AES-256-GCM encrypted, fully local. Optional extra code. No cloud.
+> Move logged-in browser sessions between Chrome profiles or devices. Optional encryption, fully local. Optional extra code. No cloud.
 
 ### Detailed Description
 ```markdown
@@ -27,15 +27,15 @@ Session Transfer moves an authenticated website session from one Chrome browser,
 
 HOW IT WORKS
 1. On the source browser, open the site, click the extension and press "Transfer Session".
-2. The extension captures cookies (including HttpOnly), localStorage, sessionStorage, IndexedDB and Cache Storage, then encrypts everything with AES-256-GCM into one package that you copy or download.
-3. On the destination browser, press "Receive Session", paste or load the encrypted package (and enter the transfer code if the package asks for one). State is restored, the page reloads, and a verification report confirms the result.
+2. The extension captures cookies (including HttpOnly), localStorage, sessionStorage, IndexedDB and Cache Storage, into one package that you copy or download (optionally encrypted with a transfer code).
+3. On the destination browser, press "Receive Session", paste or load the package (and enter the transfer code if the package asks for one). State is restored, the page reloads, and a verification report confirms the result.
 
 SECURITY & PRIVACY BY DESIGN
 • 100% local — no servers, no accounts, no analytics, no tracking.
-• AES-256-GCM with a fresh random key for every export. By default the key is inside the copied text or file, so treat it like a password. Turn on the separate transfer code setting to derive the key from a code you send on another channel (PBKDF2-SHA256, 210,000 iterations).
+• Not encrypted by default, so treat the copied text or file like a password. Turn on "Encrypt with a transfer code" to encrypt it with AES-256-GCM, using a key derived from a code you send on another channel (PBKDF2-SHA256, 600,000 iterations).
 • The extension refuses packages older than 5 minutes.
 • Strict origin isolation — a package can only ever be restored into its own website origin.
-• Existing destination sessions are never silently overwritten: choose Replace, Merge or Cancel, with an optional encrypted, auto-expiring backup.
+• Existing destination sessions are never silently overwritten: choose Replace, Merge or Cancel.
 • Honest about limits: WebAuthn/passkeys, hardware credentials and TLS-bound state cannot be transferred by any extension, and we say so in-product instead of faking success.
 
 IDEAL FOR
@@ -57,7 +57,7 @@ Google review requires specific plain-English justification for each declared pe
 | `cookies` | Yes | assets/service-worker.ts-JeVUT3mP.js:1 | Yes | HIGH | Reading and restoring cookies (including HttpOnly/Secure) is the core mechanism for transferring authenticated sessions. Cookies are only accessed for the origin the user explicitly selects. |
 | `scripting` | Yes | assets/service-worker.ts-JeVUT3mP.js:1 | Yes | MEDIUM | Used to run a one-time, user-initiated collect/restore function in the active tab to read/write that origin's localStorage, sessionStorage, IndexedDB and Cache Storage. No code runs automatically on page load. |
 | `tabs` | Yes | assets/service-worker.ts-JeVUT3mP.js:1 | Yes | MEDIUM | Used to identify the active tab's origin for collection and to open/reload the destination tab during restore. |
-| `storage` | Yes | assets/service-worker.ts-JeVUT3mP.js:1 | Yes | LOW | Stores encrypted, auto-expiring (30 min) local backups of destination state before an optional overwrite. Never synced, never transmitted. |
+| `storage` | Yes | assets/service-worker.ts-JeVUT3mP.js:1 | Yes | LOW | Keeps the on-device setting and a short-lived ready result while the popup is closed. Never synced, never transmitted. |
 | `host_permissions` | Yes | http://*/* | Yes | HIGH | The product's purpose is transferring sessions for any website the user is logged into, so a fixed host list is impossible. Access is on-demand (user clicks the toolbar action), strictly limited to the selected origin, and cross-origin mixing is cryptographically prevented (origin bound as AEAD authenticated data). |
 
 ---
@@ -69,14 +69,14 @@ Google review requires specific plain-English justification for each declared pe
   ⬇
   Popup UI ↔ background service worker (on-demand, user-initiated injection into the selected tab only)
   ⬇
-  Cookies + origin storage for the selected site are encrypted locally (AES-256-GCM, PBKDF2-SHA256)
+  Cookies + origin storage for the selected site are packaged locally (optionally encrypted: AES-256-GCM, PBKDF2-SHA256)
   ⬇
-  Encrypted `.stpkg` file saved by the user; optional encrypted, auto-expiring backup in chrome.storage.local
+  `.stpkg` file saved by the user
   ⬇
   No network transmission — the extension contacts no servers
 
 - **Data Handling Summary**:
-  - **Authentication information (cookies, site storage)**: Collected: Yes, only for the site the user selects and only when the user clicks Transfer | Stored: Only inside the user-downloaded encrypted package and, optionally, as an encrypted local backup that auto-expires after 30 minutes | Purpose: Move the user's own logged-in session to another browser/profile. Never transmitted to the developer or any third party.
+  - **Authentication information (cookies, site storage)**: Collected: Yes, only for the site the user selects and only when the user clicks Transfer | Stored: Only inside the user-downloaded package (encrypted if the user turns that on) | Purpose: Move the user's own logged-in session to another browser/profile. Never transmitted to the developer or any third party.
   - **Website content**: Collected: No | Stored: No | Purpose: None — page content is not read beyond the selected origin's storage.
   - **Analytics & Telemetry**: Collected: No | Stored: No | Purpose: None collected.
 

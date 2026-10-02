@@ -68,9 +68,9 @@ function renderReady(saved: Saved, opts: { guard?: boolean; expiresAt?: number; 
 describe('Ready screen states', () => {
   it('nothing saved: both steps shown, numbered, unchecked, with the BOTH warning and a countdown', () => {
     const html = renderReady({ package: false, code: false });
-    assert.ok(html.includes('① Encrypted package'));
+    assert.ok(html.includes('① Session package'));
     assert.ok(html.includes('② Transfer code'));
-    assert.ok(html.indexOf('① Encrypted package') < html.indexOf('② Transfer code'));
+    assert.ok(html.indexOf('① Session package') < html.indexOf('② Transfer code'));
     assert.ok(html.includes('ABC7-K9P2-WXYZ'));
     assert.match(html, /You need <b>BOTH<\/b>.*Neither works alone/);
     assert.match(html, /Expires in [45]:\d\d/);
