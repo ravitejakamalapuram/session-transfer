@@ -20,7 +20,6 @@ manifest.
 - Replace writes the new state first and then removes leftovers, so a failure
   halfway no longer leaves the site empty. The page only reloads if something
   was written.
-- Secure cookies are skipped (and reported) when restoring to an http site.
 - IndexedDB: circular values no longer abort the whole capture, databases
   that could not be read are named in the result, and restore no longer opens
   a database below its existing version. Writes count only once committed.

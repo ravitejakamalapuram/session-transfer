@@ -294,7 +294,6 @@ async function handleRestore(port: chrome.runtime.Port, req: Extract<OpRequest, 
   const cookieRes: CookieRestoreResult = await restoreCookies(payload.state.cookies, applyStrategy, destUrl).catch(() => ({
     applied: 0,
     failed: payload.state.cookies.length,
-    skipped: 0,
     written: [],
   }));
   let pageRes: any = null;
@@ -351,10 +350,7 @@ async function handleRestore(port: chrome.runtime.Port, req: Extract<OpRequest, 
     line('cacheStorage', st.cacheStorage.length, matched.cacheStorage),
   ];
 
-  const cookieNote = [
-    cookieRes.failed ? `${cookieRes.failed} cookie(s) could not be set` : '',
-    cookieRes.skipped ? `${cookieRes.skipped} secure cookie(s) skipped on an http site` : '',
-  ].filter(Boolean).join('; ');
+  const cookieNote = cookieRes.failed ? `${cookieRes.failed} cookie(s) could not be set` : '';
   const results: TransferComponentResult[] = [
     { component: 'cookies', status: outcome(cookieRes.applied, st.cookies.length), itemCount: cookieRes.applied, error: cookieNote || undefined },
     pageResult('localStorage', pageRes, st.localStorage.length),

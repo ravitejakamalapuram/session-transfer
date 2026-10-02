@@ -41,8 +41,6 @@ function cookieUrl(c: CapturedCookie): string {
 export interface CookieRestoreResult {
   applied: number;
   failed: number;
-  /** Secure cookies not written because the destination is plain http. */
-  skipped: number;
   /** The cookies that were actually written. */
   written: CapturedCookie[];
 }
@@ -62,17 +60,11 @@ export async function restoreCookies(
 ): Promise<CookieRestoreResult> {
   let applied = 0;
   let failed = 0;
-  let skipped = 0;
   const written: CapturedCookie[] = [];
-  const insecureOrigin = originUrl.startsWith('http://');
   // Replace: remember what was there, write the new cookies first, then remove only the leftovers.
   const existing = strategy === 'replace' ? await chrome.cookies.getAll({ url: originUrl }).catch(() => []) : [];
 
   for (const c of cookies) {
-    if (c.secure && insecureOrigin) {
-      skipped++;
-      continue;
-    }
     const details: chrome.cookies.SetDetails = {
       url: cookieUrl(c),
       name: c.name,
@@ -103,5 +95,5 @@ export async function restoreCookies(
     const scheme = c.secure ? 'https://' : 'http://';
     await chrome.cookies.remove({ url: `${scheme}${c.domain.replace(/^\./, '')}${c.path || '/'}`, name: c.name }).catch(() => undefined);
   }
-  return { applied, failed, skipped, written };
+  return { applied, failed, written };
 }
