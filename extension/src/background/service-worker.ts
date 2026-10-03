@@ -3,7 +3,7 @@
 // over a long-lived Port so the popup UI stays responsive.
 
 import { pageCollect, pageDetect, pageLocalStorage, pageRestore, pageVerify } from './injected';
-import { CookieRestoreResult, collectCookies, countCookies, countMatchingCookies, restoreCookies } from './cookie-manager';
+import { CookieRestoreResult, collectCookies, countCookies, countMatchingCookies, getDestinationCookies, restoreCookies } from './cookie-manager';
 import { getActiveTab, originOf, reloadTab, resolveDestinationTab } from './tab-utils';
 import { checkPackage, decryptPayload, encryptPayload, packageNeedsCode } from '../core/crypto';
 import { LARGE_WARN_BYTES, MAX_PACKAGE_BYTES, TRANSFER_TTL_MS } from '../core/limits';
@@ -297,7 +297,7 @@ async function handleRestore(port: chrome.runtime.Port, req: Extract<OpRequest, 
   }
 
   // Conflict detection: does the destination already have a session?
-  const existingCookies = await countCookies(tab.url ?? origin).catch(() => 0);
+  const existingCookies = (await getDestinationCookies(tab.url ?? origin, payload.state.cookies).catch(() => [])).length;
   let existingPage = { localStorage: 0, sessionStorage: 0, indexedDB: 0, cacheStorage: 0 };
   try {
     existingPage = await inject(tab.id, pageDetect);

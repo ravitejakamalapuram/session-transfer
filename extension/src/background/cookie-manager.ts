@@ -17,8 +17,13 @@ async function getAllCookies(filter: CookieFilter): Promise<chrome.cookies.Cooki
   }
 }
 
-const cookieId = (c: { name: string; domain: string; path: string; partitionKey?: { topLevelSite: string } }) =>
-  `${c.name}|${c.domain.replace(/^\./, '')}|${c.path}|${c.partitionKey?.topLevelSite ?? ''}`;
+const cookieId = (c: {
+  name: string;
+  domain: string;
+  path: string;
+  partitionKey?: { topLevelSite: string; hasCrossSiteAncestor?: boolean };
+}) =>
+  `${c.name}|${c.domain.replace(/^\./, '')}|${c.path}|${c.partitionKey?.topLevelSite ?? ''}|${c.partitionKey?.hasCrossSiteAncestor ?? ''}`;
 
 /**
  * Cookies the page at `url` would send, plus (optionally) every cookie of `extraDomains` — host
@@ -50,6 +55,22 @@ export async function collectCookies(url: string, extraDomains: string[] = []): 
     });
   }
   return out;
+}
+
+/** Cookies currently at the destination: the page URL plus every host the package carries cookies for. */
+export async function getDestinationCookies(url: string, cookies: CapturedCookie[]): Promise<chrome.cookies.Cookie[]> {
+  const domains = [...new Set(cookies.map((c) => c.domain.replace(/^\./, '')))];
+  const lists = await Promise.all([
+    getAllCookies({ url }).catch(() => []),
+    ...domains.map((domain) => getAllCookies({ domain }).catch(() => [])),
+  ]);
+  const seen = new Set<string>();
+  return lists.flat().filter((c) => {
+    const id = `${c.storeId}|${cookieId(c as never)}`;
+    if (seen.has(id)) return false;
+    seen.add(id);
+    return true;
+  });
 }
 
 export async function countCookies(url: string): Promise<number> {
@@ -91,7 +112,7 @@ export async function restoreCookies(
   let failed = 0;
   const written: CapturedCookie[] = [];
   // Replace: remember what was there, write the new cookies first, then remove only the leftovers.
-  const existing = strategy === 'replace' ? await chrome.cookies.getAll({ url: originUrl }).catch(() => []) : [];
+  const existing = strategy === 'replace' ? await getDestinationCookies(originUrl, cookies) : [];
 
   for (const c of cookies) {
     const details: chrome.cookies.SetDetails = {
