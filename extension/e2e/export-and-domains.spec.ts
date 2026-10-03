@@ -62,6 +62,19 @@ test('A. "Export for Playwright" saves a storageState file that a fresh Playwrig
   }
 });
 
+test('A2. pressing "Export for Playwright" twice quickly saves one file', async ({ h }) => {
+  const a = await h.openPopup(FAST);
+  await openMore(a.popup);
+  let downloads = 0;
+  a.popup.on('download', () => downloads++);
+  const button = a.popup.getByTestId('export-state-button');
+  await button.dblclick();
+  await expect(a.popup.getByTestId('export-note')).toContainText('Saved storageState-');
+  await a.popup.waitForTimeout(1500); // a second download, if any, would have started by now
+  expect(downloads).toBe(1);
+  await expect(button).toBeEnabled(); // and it can be used again afterwards
+});
+
 test('B. extra cookie domains: a sign-in cookie on another host is transferred', async ({ h, b }) => {
   const a = await h.openPopup(FAST);
   const sso = uniq();

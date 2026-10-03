@@ -104,6 +104,8 @@ export default function App() {
   const [requireCode, setRequireCode] = useState(false);
   const [extraDomains, setExtraDomains] = useState('');
   const [exportNote, setExportNote] = useState('');
+  const [exporting, setExporting] = useState(false);
+  const exportInProgress = useRef(false);
   const [codeNeeded, setCodeNeeded] = useState(false);
   const savedRef = useRef<Saved>(NOTHING_SAVED);
   savedRef.current = saved;
@@ -269,8 +271,19 @@ export default function App() {
 
   // ---------------------------------------------------------------- export for Playwright
   const exportState = () => {
+    if (exportInProgress.current) return; // one export at a time: no duplicate downloads
+    exportInProgress.current = true;
+    setExporting(true);
     setExportNote('');
-    const stop = runOp({ type: 'exportState', extraDomains: parseExtraDomains(extraDomains).domains }, (msg: OpResponse) => {
+    let stop: (() => void) | undefined;
+    let finished = false;
+    const finish = () => {
+      finished = true;
+      exportInProgress.current = false;
+      setExporting(false);
+      stop?.();
+    };
+    stop = runOp({ type: 'exportState', extraDomains: parseExtraDomains(extraDomains).domains }, (msg: OpResponse) => {
       if (msg.type === 'stateExported') {
         const blob = new Blob([msg.json], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
@@ -284,12 +297,13 @@ export default function App() {
             (msg.skippedPartitioned ? `, ${msg.skippedPartitioned} partitioned cookies left out` : '') +
             '. It holds live logins: treat it like a password.',
         );
-        stop();
+        finish();
       } else if (msg.type === 'error') {
         setExportNote(msg.message);
-        stop();
+        finish();
       }
     });
+    if (finished) stop(); // runOp answered before it returned
   };
 
   // ---------------------------------------------------------------- helpers
@@ -403,6 +417,7 @@ export default function App() {
             setExtraDomains={setExtraDomains}
             onExportState={exportState}
             exportNote={exportNote}
+            exporting={exporting}
             onReceive={() => {
               clearDraft();
               setPackageText('');
@@ -538,6 +553,7 @@ function Home({
   setExtraDomains,
   onExportState,
   exportNote,
+  exporting,
   onReceive,
 }: {
   detect: DetectInfo;
@@ -550,6 +566,7 @@ function Home({
   setExtraDomains: (v: string) => void;
   onExportState: () => void;
   exportNote: string;
+  exporting: boolean;
   onReceive: () => void;
 }) {
   const extra = parseExtraDomains(extraDomains);
@@ -650,7 +667,7 @@ function Home({
               Not a plain host name: {extra.invalid.join(', ')}
             </div>
           )}
-          <Button testid="export-state-button" variant="ghost" onClick={onExportState} disabled={blocked}>
+          <Button testid="export-state-button" variant="ghost" onClick={onExportState} disabled={blocked || exporting}>
             Export for Playwright (.json)
           </Button>
           <div className="hint">Saves this site's cookies and localStorage as a Playwright storageState file for tests.</div>

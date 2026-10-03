@@ -191,7 +191,14 @@ async function handleExportState(port: chrome.runtime.Port, extraDomains: string
     send(port, { type: 'error', message: 'No transferable website in the active tab.' });
     return;
   }
-  const cookies = await collectCookies(tab.url!, extraDomains).catch(() => []);
+  let cookies: Awaited<ReturnType<typeof collectCookies>>;
+  try {
+    cookies = await collectCookies(tab.url!, extraDomains);
+  } catch {
+    // An export without its cookies would look like a success and fail later in the test run.
+    send(port, { type: 'error', message: 'Cookie read failed. No file was created.' });
+    return;
+  }
   let items: [string, string][] = [];
   try {
     items = (await inject<{ items: [string, string][] }>(tab.id, pageLocalStorage)).items;
