@@ -63,7 +63,6 @@ touching the transfer engine.
 |-----------|-----|
 | `cookies` | Read/write HttpOnly & Secure cookies for the selected origin. |
 | `scripting` | Inject on-demand collect/restore functions into the active tab (page-context storage). |
-| `tabs` | Resolve the active tab and open/navigate the destination tab. |
 | `storage` | Keep the on-device setting and the short-lived "ready" result while the popup is closed. |
 | `host_permissions: http/https` | The user may transfer *any* origin's session, so a fixed host list is impossible. No `<all_urls>` content scripts run automatically — injection is on-demand and user-initiated only, and state is strictly origin-bound. |
 
@@ -73,15 +72,33 @@ CSP: `script-src 'self'; object-src 'self'; base-uri 'self'` — no `eval`, no r
 
 ```bash
 cd extension
-yarn install
-yarn dev        # HMR dev build (loads dist/ into Chrome)
-yarn build      # type-check + production build -> dist/
-yarn zip        # build + package -> session-transfer-vX.Y.Z.zip
+npm ci
+npm run dev    # HMR dev build (loads dist/ into Chrome)
+npm run build  # type-check + production build -> dist/
+npm run zip    # build + package -> session-transfer-vX.Y.Z.zip
 ```
+
+## Extras (popup → More options)
+
+- **Export for Playwright (.json)** saves the active site's cookies and localStorage as a Playwright `storageState`
+  file (`browser.newContext({ storageState })`). sessionStorage and IndexedDB are not part of that format and
+  partitioned cookies are left out. The file holds live logins.
+- **Cookies from other sites**: up to 5 plain host names whose cookies are added to the transfer, for sites that sign
+  you in through another host. Nothing is added unless typed.
+
+## Tests
+
+```bash
+npm test            # unit tests (node:test)
+npm run test:e2e    # Playwright acceptance tests (two separate Chrome profiles)
+```
+
+In CI the Playwright suite runs from `release.yaml` (`e2e`, `e2e_in_release`): after the Chrome build on every
+pull request and again before packaging in a release.
 
 ## Load in Chrome
 
-1. `yarn build` (or unzip the released `.zip`).
+1. `npm run build` (or unzip the released `.zip`).
 2. Open `chrome://extensions`.
 3. Enable **Developer mode** (top-right).
 4. **Load unpacked** → select the `extension/dist` folder (or the unzipped folder).

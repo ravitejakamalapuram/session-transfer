@@ -10,11 +10,6 @@ permissions:
     reason: "Inject a one-time collector/restorer function into the active tab to read/write localStorage, sessionStorage, IndexedDB and Cache Storage"
     data_access: [page_storage_selected_origin]
     security_impact: high
-  - permission: tabs
-    required: true
-    reason: "Resolve the active tab's URL/origin for collection, and open/reload the destination tab during restore"
-    data_access: [tab_url]
-    security_impact: high # config/security.yaml: tabs is high-risk when used to read URLs, not just counts/titles
   - permission: storage
     required: true
     reason: "Persist the on-device setting (chrome.storage.local); hold an in-memory-only draft of the receive flow (chrome.storage.session)"

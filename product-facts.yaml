@@ -97,10 +97,31 @@ facts:
     note: "Not in any listing text. Listed because users will hit it."
 
   permissions:
-    claim: "Permissions: cookies, scripting, tabs, storage, plus http/https host access. Injection is on demand from the popup; no content script runs on page load."
+    claim: "Permissions: cookies, scripting, storage, plus http/https host access (the host access is what lets the extension read the active tab's address; there is no separate `tabs` permission since 1.4.0). Injection is on demand from the popup; no content script runs on page load."
     status: safe
     sources: ["PRIVACY.md:34-43", "CHROMEWEBSTORE.md:55-61"]
     code: ["extension/manifest.config.ts (permissions; no content_scripts key; grep confirms)"]
+
+  playwright_export:
+    claim: "\"Export for Playwright\" (under More options) saves the active site's cookies and localStorage as a Playwright storageState .json file. sessionStorage and IndexedDB are not in it, and partitioned cookies are left out (the popup says how many)."
+    status: narrow
+    sources: ["extension/README.md (Export for Playwright)", "extension/store-listing.md (FOR DEVELOPERS AND QA)"]
+    code: ["extension/src/core/storage-state.ts (buildStorageState, toPlaywrightCookie)", "extension/src/background/service-worker.ts (handleExportState)", "extension/e2e/export-and-domains.spec.ts (A: a fresh Playwright context loads the file and sees the login)"]
+    note: "The file is plain text and holds live logins: the popup says so after saving. Say 'Playwright storageState'; do not claim Puppeteer, Selenium or Cypress support (not tested). Do not say 'secure export'."
+
+  extra_cookie_domains:
+    claim: "Under More options the user can type up to 5 plain host names (for example accounts.example.com); their cookies are added to the package. Nothing is added unless the user types it."
+    status: safe
+    sources: ["extension/README.md (Cookies from other sites)"]
+    code: ["extension/src/core/storage-state.ts (parseExtraDomains)", "extension/src/background/cookie-manager.ts (collectCookies)", "extension/e2e/export-and-domains.spec.ts (B, C, D)"]
+    note: "The package is still bound to the site the user was on; the extra cookies are restored with their own domains. Do not say it 'fixes SSO' or 'works with every sign-in': it moves cookies only."
+
+  partitioned_cookies:
+    claim: "Partitioned (CHIPS) cookies of the site are transferred together with their partition."
+    status: safe
+    sources: ["CHANGELOG.md [1.4.0]"]
+    code: ["extension/src/background/cookie-manager.ts (getAllCookies, restoreCookies)", "extension/e2e/export-and-domains.spec.ts (E)"]
+    note: "Needs a Chrome that supports the cookies partitionKey option (119 or later); older Chrome falls back to unpartitioned cookies only."
 
   audience:
     claim: "Developers moving sessions between dev/staging/prod profiles; people switching computers or browsers; QA teams reproducing authenticated states."

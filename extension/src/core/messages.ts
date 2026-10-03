@@ -22,7 +22,8 @@ export type OpRequest =
   // A package over the 64 MiB port limit is streamed in `packageChunk` messages first; the
   // following inspect/restore then carries an empty `packageText`.
   | { type: 'packageChunk'; data: string }
-  | { type: 'collect'; requireCode?: boolean }
+  | { type: 'collect'; requireCode?: boolean; extraDomains?: string[] }
+  | { type: 'exportState'; extraDomains?: string[] }
   | { type: 'inspect'; packageText: string; code?: string }
   | {
       type: 'restore';
@@ -48,6 +49,7 @@ export type OpResponse =
       unsupported: string[];
       sizeBytes: number;
     }
+  | { type: 'stateExported'; json: string; host: string; cookies: number; localStorage: number; skippedPartitioned: number }
   | { type: 'inspected'; summary: PayloadSummary }
   // The package needs a transfer code and none was given; nothing was decrypted.
   | { type: 'codeRequired'; expiresAt: number; origin: string }

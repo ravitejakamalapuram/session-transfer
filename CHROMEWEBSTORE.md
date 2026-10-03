@@ -38,6 +38,10 @@ SECURITY & PRIVACY BY DESIGN
 • Existing destination sessions are never silently overwritten: choose Replace, Merge or Cancel.
 • Honest about limits: WebAuthn/passkeys, hardware credentials and TLS-bound state cannot be transferred by any extension, and we say so in-product instead of faking success.
 
+FOR DEVELOPERS AND QA
+• "Export for Playwright" saves the current site's cookies and localStorage as a Playwright storageState file, so automated tests can start already logged in.
+• Signing in through another site? Add its host name (up to 5) under More options and its cookies travel too.
+
 IDEAL FOR
 • Developers moving authenticated sessions between dev/staging/prod profiles.
 • Switching computers or browsers without logging in again.
@@ -56,7 +60,6 @@ Google review requires specific plain-English justification for each declared pe
 | :--- | :---: | :--- | :---: | :---: | :--- |
 | `cookies` | Yes | assets/service-worker.ts-JeVUT3mP.js:1 | Yes | HIGH | Reading and restoring cookies (including HttpOnly/Secure) is the core mechanism for transferring authenticated sessions. Cookies are only accessed for the origin the user explicitly selects. |
 | `scripting` | Yes | assets/service-worker.ts-JeVUT3mP.js:1 | Yes | MEDIUM | Used to run a one-time, user-initiated collect/restore function in the active tab to read/write that origin's localStorage, sessionStorage, IndexedDB and Cache Storage. No code runs automatically on page load. |
-| `tabs` | Yes | assets/service-worker.ts-JeVUT3mP.js:1 | Yes | MEDIUM | Used to identify the active tab's origin for collection and to open/reload the destination tab during restore. |
 | `storage` | Yes | assets/service-worker.ts-JeVUT3mP.js:1 | Yes | LOW | Keeps the on-device setting and a short-lived ready result while the popup is closed. Never synced, never transmitted. |
 | `host_permissions` | Yes | http://*/* | Yes | HIGH | The product's purpose is transferring sessions for any website the user is logged into, so a fixed host list is impossible. Access is on-demand (user clicks the toolbar action), strictly limited to the selected origin, and cross-origin mixing is cryptographically prevented (origin bound as AEAD authenticated data). |
 

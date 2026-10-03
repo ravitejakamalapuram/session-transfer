@@ -4,6 +4,24 @@ All notable changes to Session Transfer are documented here. The extension
 version comes from `extension/package.json` and is written into the built
 manifest.
 
+## [1.4.0]
+
+### Added
+- **Export for Playwright (.json)** under More options: the active site's cookies and localStorage as a Playwright
+  `storageState` file for tests. Partitioned cookies are left out and counted; sessionStorage and IndexedDB are not
+  part of that format.
+- **Cookies from other sites**: type up to 5 plain host names (for example `accounts.example.com`) and their cookies
+  are added to the transfer. Nothing is added unless typed; anything that is not a plain host name is refused.
+- **Partitioned (CHIPS) cookies** are now transferred together with their partition (Chrome 119 or later).
+- Playwright acceptance tests for all of the above, and unit tests for the storageState mapping and the host-name
+  check. The Playwright suite now runs from `release.yaml`, in pull-request checks and in the release pipeline.
+
+### Changed
+- Cookie verification looks each cookie up by its own domain, so cookies from other sites are checked too.
+- **The `tabs` permission is no longer requested.** The http/https host access already exposes each tab's address.
+- All time and size limits live in `src/core/limits.ts`, with the reason for each value.
+- Developer docs use `npm` (the repo has a `package-lock.json` and CI runs `npm ci`), not `yarn`.
+
 ## [1.3.0]
 
 ### Changed

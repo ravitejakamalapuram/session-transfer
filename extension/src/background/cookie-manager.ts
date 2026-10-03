@@ -6,21 +6,71 @@
 
 import { CapturedCookie } from '../core/types';
 
-export async function collectCookies(url: string): Promise<CapturedCookie[]> {
-  const cookies = await chrome.cookies.getAll({ url });
-  return cookies.map((c) => ({
-    name: c.name,
-    value: c.value,
-    domain: c.domain,
-    path: c.path,
-    secure: c.secure,
-    httpOnly: c.httpOnly,
-    sameSite: c.sameSite,
-    expirationDate: c.expirationDate,
-    hostOnly: c.hostOnly,
-    session: c.session,
-    storeId: c.storeId,
-  }));
+type CookieFilter = { url?: string; domain?: string };
+
+/** getAll that also returns partitioned (CHIPS) cookies; falls back on a Chrome that rejects the key. */
+async function getAllCookies(filter: CookieFilter): Promise<chrome.cookies.Cookie[]> {
+  try {
+    return await chrome.cookies.getAll({ ...filter, partitionKey: {} } as chrome.cookies.GetAllDetails);
+  } catch {
+    return chrome.cookies.getAll(filter);
+  }
+}
+
+const cookieId = (c: {
+  name: string;
+  domain: string;
+  path: string;
+  partitionKey?: { topLevelSite: string; hasCrossSiteAncestor?: boolean };
+}) =>
+  `${c.name}|${c.domain.replace(/^\./, '')}|${c.path}|${c.partitionKey?.topLevelSite ?? ''}|${c.partitionKey?.hasCrossSiteAncestor ?? ''}`;
+
+/**
+ * Cookies the page at `url` would send, plus (optionally) every cookie of `extraDomains` — host
+ * names the user typed, for sign-in on a sibling site. Nothing else is read.
+ */
+export async function collectCookies(url: string, extraDomains: string[] = []): Promise<CapturedCookie[]> {
+  const lists = await Promise.all([getAllCookies({ url }), ...extraDomains.map((domain) => getAllCookies({ domain }))]);
+  const seen = new Set<string>();
+  const out: CapturedCookie[] = [];
+  for (const c of lists.flat()) {
+    const id = `${cookieId(c as never)}|${c.storeId}`;
+    if (seen.has(id)) continue;
+    seen.add(id);
+    out.push({
+      name: c.name,
+      value: c.value,
+      domain: c.domain,
+      path: c.path,
+      secure: c.secure,
+      httpOnly: c.httpOnly,
+      sameSite: c.sameSite,
+      expirationDate: c.expirationDate,
+      hostOnly: c.hostOnly,
+      session: c.session,
+      storeId: c.storeId,
+      ...((c as { partitionKey?: CapturedCookie['partitionKey'] }).partitionKey
+        ? { partitionKey: (c as { partitionKey?: CapturedCookie['partitionKey'] }).partitionKey }
+        : {}),
+    });
+  }
+  return out;
+}
+
+/** Cookies currently at the destination: the page URL plus every host the package carries cookies for. */
+export async function getDestinationCookies(url: string, cookies: CapturedCookie[]): Promise<chrome.cookies.Cookie[]> {
+  const domains = [...new Set(cookies.map((c) => c.domain.replace(/^\./, '')))];
+  const lists = await Promise.all([
+    getAllCookies({ url }).catch(() => []),
+    ...domains.map((domain) => getAllCookies({ domain }).catch(() => [])),
+  ]);
+  const seen = new Set<string>();
+  return lists.flat().filter((c) => {
+    const id = `${c.storeId}|${cookieId(c as never)}`;
+    if (seen.has(id)) return false;
+    seen.add(id);
+    return true;
+  });
 }
 
 export async function countCookies(url: string): Promise<number> {
@@ -45,11 +95,11 @@ export interface CookieRestoreResult {
   written: CapturedCookie[];
 }
 
-const cookieId = (c: { name: string; domain: string; path: string }) => `${c.name}|${c.domain.replace(/^\./, '')}|${c.path}`;
-
-/** How many of `cookies` exist (same name, domain and path) in the browser for `url`. */
-export async function countMatchingCookies(url: string, cookies: CapturedCookie[]): Promise<number> {
-  const have = new Set((await chrome.cookies.getAll({ url }).catch(() => [])).map(cookieId));
+/** How many of `cookies` exist (same name, domain, path and partition) in the browser right now. */
+export async function countMatchingCookies(cookies: CapturedCookie[]): Promise<number> {
+  const hosts = [...new Set(cookies.map((c) => c.domain.replace(/^\./, '')))];
+  const lists = await Promise.all(hosts.map((domain) => getAllCookies({ domain }).catch(() => [])));
+  const have = new Set(lists.flat().map((c) => cookieId(c as never)));
   return cookies.filter((c) => have.has(cookieId(c))).length;
 }
 
@@ -62,7 +112,7 @@ export async function restoreCookies(
   let failed = 0;
   const written: CapturedCookie[] = [];
   // Replace: remember what was there, write the new cookies first, then remove only the leftovers.
-  const existing = strategy === 'replace' ? await chrome.cookies.getAll({ url: originUrl }).catch(() => []) : [];
+  const existing = strategy === 'replace' ? await getDestinationCookies(originUrl, cookies) : [];
 
   for (const c of cookies) {
     const details: chrome.cookies.SetDetails = {
@@ -77,6 +127,7 @@ export async function restoreCookies(
     // host-only cookies must NOT carry a domain; domain cookies must.
     if (!c.hostOnly) details.domain = c.domain;
     if (!c.session && c.expirationDate) details.expirationDate = c.expirationDate;
+    if (c.partitionKey) (details as { partitionKey?: unknown }).partitionKey = c.partitionKey;
 
     try {
       const set = await chrome.cookies.set(details);

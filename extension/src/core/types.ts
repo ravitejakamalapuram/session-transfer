@@ -31,6 +31,8 @@ export interface TransferComponentResult {
 
 /** A single cookie captured for an origin. */
 export interface CapturedCookie {
+  /** Set for a partitioned (CHIPS) cookie. */
+  partitionKey?: { topLevelSite: string; hasCrossSiteAncestor?: boolean };
   name: string;
   value: string;
   domain: string;

@@ -5,6 +5,7 @@
 //   - crypto.getRandomValues for key / salt / iv / transfer code / id
 // No custom cryptography.
 
+import { LEGACY_PBKDF2_ITERATIONS, MAX_PACKAGE_LIFETIME_MS, MAX_PBKDF2_ITERATIONS, PBKDF2_ITERATIONS } from './limits';
 import { bytesToBase64, base64ToBytes, strToBytes, bytesToStr } from './encoding';
 import {
   EncryptedPackage,
@@ -19,10 +20,8 @@ import {
 // ArrayBufferLike). Our byte arrays are always plain ArrayBuffer-backed.
 const bs = (u: Uint8Array): BufferSource => u as unknown as BufferSource;
 
-const PBKDF2_ITERATIONS = 600_000;
 const KEY_BYTES = 32;
-/** A package may not claim to live longer than a transfer does (5 min) plus 30 s clock skew. */
-export const MAX_PACKAGE_LIFETIME_MS = 5 * 60 * 1000 + 30 * 1000;
+export { MAX_PACKAGE_LIFETIME_MS };
 // Unambiguous alphabet (no 0/O/1/I) for human-typed transfer codes.
 const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 const CODE_GROUPS = 3;
@@ -219,8 +218,8 @@ export async function decryptPayload(
     if (pkg.version === LEGACY_PACKAGE_VERSION || pkg.keyMode === 'code') {
       if (!code || !code.trim()) throw new DecryptError('Enter the transfer code from the sending browser.');
       if (!pkg.salt) throw new DecryptError('Package is incomplete or damaged.');
-      const iterations = pkg.iterations ?? 210_000;
-      if (!Number.isInteger(iterations) || iterations < 1 || iterations > 2_000_000) {
+      const iterations = pkg.iterations ?? LEGACY_PBKDF2_ITERATIONS;
+      if (!Number.isInteger(iterations) || iterations < 1 || iterations > MAX_PBKDF2_ITERATIONS) {
         throw new DecryptError('Package is incomplete or damaged.');
       }
       key = await deriveKey(code, base64ToBytes(pkg.salt), iterations);
