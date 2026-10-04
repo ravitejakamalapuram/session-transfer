@@ -1,0 +1,51 @@
+# Install as .github/workflows/listing.yml. A merge to main that changes the store listing text or
+# images validates them (dry run), then opens ONE checklist issue with the files attached. The
+# Chrome Web Store API cannot edit listings, so one person pastes the text and uploads the images in
+# the Developer Dashboard, presses Submit for review, and ticks the box. Merges that leave the
+# listing files unchanged open nothing. (Android lines, the daily drift check and the
+# promo-video issue handling of the platform template are left out on purpose.)
+name: listing
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'chrome-store/**'
+      - 'extension/store-assets/**'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (validate and show what would change; no Play commit, no issue)'
+        type: boolean
+        default: false
+      targets:
+        description: 'Only these target types (comma list: chrome,android). Empty = all.'
+        type: string
+        default: ''
+
+permissions: {}
+
+jobs:
+  # Always a dry run first: a listing that fails validation stops here, before the sync job.
+  preview:
+    permissions:
+      contents: read
+      issues: write
+      id-token: write
+    uses: ravitejakamalapuram/release-platform/.github/workflows/listing.yml@v2
+    with:
+      dry_run: true
+      targets: ${{ inputs.targets || '' }}
+
+  sync:
+    needs: preview
+    # Merges always sync; a manual run syncs unless it asked for a dry run (the preview above).
+    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.dry_run == false)
+    permissions:
+      contents: read
+      issues: write
+      id-token: write
+    uses: ravitejakamalapuram/release-platform/.github/workflows/listing.yml@v2
+    with:
+      dry_run: false
+      targets: ${{ inputs.targets || '' }}
