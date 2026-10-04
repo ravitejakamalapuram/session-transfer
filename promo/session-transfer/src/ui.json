@@ -1,0 +1,112 @@
+{
+  "site": "https://app.example.com",
+  "originCard": "app.example.com https://app.example.com Session detected",
+  "detectCounts": "Cookies 9 Local Storage 18 Session Storage 4 IndexedDB 1 Cache Storage 1",
+  "ready": "Session Transfer\nMove a logged-in session\n✓\nSESSION READY\napp.example.com · 52.7 KB\nAnyone with this text can restore your session until 10:05 AM. Paste it now. Do not share it. Delete the downloaded file after you import it.\nSession package\n✓ saved\nCopied ✓\n⬇ Download file\nExpires in 5:00\nOn the other browser: Receive Session.\nView transfer details\nDone (clears clipboard)\n🔒 Local only · No server\nRate or report a problem",
+  "packageChars": 72142,
+  "readyBoxes": {
+    "size": [
+      [
+        289,
+        417,
+        411,
+        41
+      ]
+    ],
+    "expiry": [
+      [
+        42,
+        952,
+        905,
+        41
+      ]
+    ],
+    "copy": [
+      [
+        75,
+        798,
+        409,
+        95
+      ]
+    ],
+    "badge": []
+  },
+  "receiveBoxes": {
+    "counts": [
+      [
+        42,
+        410,
+        905,
+        242
+      ]
+    ],
+    "origin": [
+      [
+        80,
+        258,
+        828,
+        49
+      ]
+    ],
+    "importBtn": [
+      [
+        42,
+        870,
+        905,
+        107
+      ]
+    ]
+  },
+  "inspect": "Session Transfer\nMove a logged-in session\nSESSION AVAILABLE\napp.example.com\nCreated 6s ago · expires in 5m\nCookies\n9\nLocal Storage\n18\nSession Storage\n4\nIndexedDB\n120\nCache Storage\n6\nNot restored (by design): WebAuthn / passkeys, hardware credentials, TLS state.\nImport Session\nBack\n🔒 Local only · No server\nRate or report a problem",
+  "restored": "Session Transfer\nMove a logged-in session\n✓\nSESSION RESTORED\n✓\nCookies\n9 / 9\n✓\nLocal Storage\n18 / 18\n✓\nSession Storage\n4 / 4\n✓\nIndexedDB\n1 / 1\n✓\nCache Storage\n1 / 1\nVerification: Passed · page reloaded\nSome state can never be transferred (WebAuthn / passkeys, hardware credentials). You may still need to verify those on this device.\nOpen Website\nDone\n🔒 Local only · No server\nRate or report a problem",
+  "restoredBoxes": {
+    "rows": [
+      [
+        42,
+        427,
+        905,
+        87
+      ],
+      [
+        42,
+        519,
+        905,
+        87
+      ],
+      [
+        42,
+        611,
+        905,
+        87
+      ],
+      [
+        42,
+        703,
+        905,
+        87
+      ],
+      [
+        42,
+        795,
+        905,
+        87
+      ]
+    ],
+    "status": [
+      [
+        42,
+        908,
+        905,
+        104
+      ]
+    ],
+    "report": [
+      [
+        42,
+        427,
+        905,
+        455
+      ]
+    ]
+  }
+}
