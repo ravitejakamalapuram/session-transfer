@@ -62,7 +62,12 @@ export async function getDestinationCookies(url: string, cookies: CapturedCookie
   const domains = [...new Set(cookies.map((c) => c.domain.replace(/^\./, '')))];
   const lists = await Promise.all([
     getAllCookies({ url }).catch(() => []),
-    ...domains.map((domain) => getAllCookies({ domain }).catch(() => [])),
+    // A domain query also returns subdomain cookies; keep only the hosts the package itself covers.
+    ...domains.map((domain) =>
+      getAllCookies({ domain })
+        .then((list) => list.filter((c) => c.domain.replace(/^\./, '') === domain))
+        .catch(() => []),
+    ),
   ]);
   const seen = new Set<string>();
   return lists.flat().filter((c) => {
@@ -144,7 +149,13 @@ export async function restoreCookies(
   for (const c of existing) {
     if (keep.has(cookieId(c))) continue;
     const scheme = c.secure ? 'https://' : 'http://';
-    await chrome.cookies.remove({ url: `${scheme}${c.domain.replace(/^\./, '')}${c.path || '/'}`, name: c.name }).catch(() => undefined);
+    await chrome.cookies
+      .remove({
+        url: `${scheme}${c.domain.replace(/^\./, '')}${c.path || '/'}`,
+        name: c.name,
+        ...((c as { partitionKey?: unknown }).partitionKey ? { partitionKey: (c as { partitionKey?: unknown }).partitionKey } : {}),
+      } as Parameters<typeof chrome.cookies.remove>[0])
+      .catch(() => undefined);
   }
   return { applied, failed, written };
 }

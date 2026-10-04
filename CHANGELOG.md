@@ -1,8 +1,20 @@
 # Changelog
 
-All notable changes to Session Transfer are documented here. The extension
-version comes from `extension/package.json` and is written into the built
-manifest.
+All notable changes to Session Transfer are documented here. Released versions come from the release
+tag (release-platform stamps it into the built manifest), so the numbers below may run ahead of it.
+
+## [Unreleased]
+
+### Fixed
+- Replace no longer removes cookies of an unrelated subdomain, and now removes leftover partitioned cookies from their
+  own partition.
+- The popup header said "AES-256-GCM · local only" even for the default plain package. It now reads "Move a logged-in
+  session".
+
+### Changed
+- Store screenshots are generated from the real popup (`e2e/store-shots.spec.ts`) and the promo tiles no longer claim
+  encryption by default; the old images still showed backups and an always-required code.
+- Release and listing automation drafts: `docs/release-automation/`.
 
 ## [1.4.0]
 
@@ -47,7 +59,10 @@ manifest.
 - The destination backup before Replace (it stored its own decryption code and
   could not be restored). Backups left by 1.2.x are deleted on update.
 
-## [Unreleased]
+## [1.2.2 / 1.2.3]
+
+Superseded by 1.3.0: packages are plain by default and the setting is now "Encrypt with a transfer code". Kept as
+written at the time.
 
 ### Changed
 - **The transfer code is now optional and off by default.** Packages are still
