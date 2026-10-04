@@ -91,6 +91,7 @@ npm run zip    # build + package -> session-transfer-vX.Y.Z.zip
 ```bash
 npm test            # unit tests (node:test)
 npm run test:e2e    # Playwright acceptance tests (two separate Chrome profiles)
+npm run build && STORE_ASSETS=1 TZ=UTC npx playwright test e2e/store-shots.spec.ts   # regenerate the store screenshots from the real popup
 ```
 
 In CI the Playwright suite runs from `release.yaml` (`e2e`, `e2e_in_release`): after the Chrome build on every

@@ -64,10 +64,12 @@ Reviewers will install and run the extension, so do this first:
 **Language:** English
 
 **Screenshots (1280×800)** — upload in this order, from `extension/store-assets/`:
-1. `screenshot-home.png` — "Session detected — one click to export"
-2. `screenshot-transfer.png` — "Copy or download, optional encryption, 5-minute expiry"
-3. `screenshot-receive.png` — "Paste or load the package"
-4. `screenshot-restored.png` — "Logged in & verified"
+1. `screenshot-home.png` — "Open the site. Press Transfer."
+2. `screenshot-transfer.png` — "Copy it. Lock it if you want." (plain by default, optional encryption, 5-minute limit)
+3. `screenshot-receive.png` — "Paste it. Check what moves."
+4. `screenshot-restored.png` — "Logged in. Checked."
+
+The four screenshots are made from the real popup: `cd extension && npm run build && STORE_ASSETS=1 TZ=UTC npx playwright test e2e/store-shots.spec.ts`. Captions live in that spec. The two tiles are rendered from `store-assets/tiles.html` (instructions in its first lines).
 
 **Small promo tile (440×280):** `store-assets/tile-small-440x280.png`
 **Marquee (1400×560, optional):** `store-assets/tile-marquee-1400x560.png`

@@ -395,7 +395,7 @@ export default function App() {
         <img className="logo" src={LOGO} alt="" />
         <div>
           <div className="title">Session Transfer</div>
-          <div className="sub">AES-256-GCM · local only</div>
+          <div className="sub">Move a logged-in session</div>
         </div>
       </header>
 
