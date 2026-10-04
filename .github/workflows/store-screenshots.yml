@@ -1,0 +1,33 @@
+# Keeps the Chrome Web Store screenshots in step with the real popup (logic lives in
+# release-platform/store-screenshots.yml).
+#   pull_request: fails if extension/store-assets/ would change, so a UI change cannot merge with
+#                 stale store images.
+#   Run workflow: pick the PR branch under "Use workflow from"; commits the refreshed images. Then
+#                 close and reopen the PR so `ci` runs on the new head.
+# Run it manually once to produce the baseline. Keep the check optional: the path filter skips it on
+# unrelated PRs, and a skipped required check stays pending.
+name: store-screenshots
+
+on:
+  pull_request:
+    paths:
+      - 'extension/src/**'
+      - '!extension/src/**/*.test.ts'
+      - '!extension/src/**/*.test.tsx'
+      - 'extension/index.html'
+      - 'extension/icons/**'
+      - 'extension/e2e/store-shots.spec.ts'
+      - 'extension/store-assets/**'
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: store-screenshots-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  screenshots:
+    permissions:
+      contents: write # PR runs only read; a manual run commits the refreshed images
+    uses: ravitejakamalapuram/release-platform/.github/workflows/store-screenshots.yml@v2
