@@ -62,12 +62,14 @@ jobs:
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     permissions:
-      contents: write # commits the refreshed images to the selected branch
+      contents: read
     defaults:
       run:
         working-directory: extension
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v7
         with:
           node-version: '20'
@@ -80,8 +82,28 @@ jobs:
         env:
           STORE_ASSETS: '1'
           TZ: UTC
+      - uses: actions/upload-artifact@v7
+        with:
+          name: store-screenshots
+          path: extension/store-assets/screenshot-*.png
+          if-no-files-found: error
+
+  # A separate job, so the write token never shares a runner with the branch's npm and Playwright code.
+  commit:
+    needs: refresh
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # commits the refreshed images to the selected branch
+      actions: read # downloads the screenshots the refresh job uploaded
+    steps:
+      - uses: actions/checkout@v7
+      - name: Download refreshed images
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name store-screenshots --dir "$RUNNER_TEMP/shots"
+          cp "$RUNNER_TEMP"/shots/screenshot-*.png extension/store-assets/
       - name: Commit refreshed images
-        working-directory: .
         run: |
           git add extension/store-assets/screenshot-*.png
           if git diff --cached --quiet; then echo "Store images already up to date."; exit 0; fi
