@@ -4,7 +4,8 @@
 #                 stale store images.
 #   Run workflow: pick the PR branch under "Use workflow from"; commits the refreshed images. Then
 #                 close and reopen the PR so `ci` runs on the new head.
-# Do NOT mark the check as required until a manual run on the runner has produced the baseline.
+# Run it manually once to produce the baseline. Keep the check optional: the path filter skips it on
+# unrelated PRs, and a skipped required check stays pending.
 name: store-screenshots
 
 on:
@@ -16,6 +17,7 @@ on:
       - 'extension/index.html'
       - 'extension/icons/**'
       - 'extension/e2e/store-shots.spec.ts'
+      - 'extension/store-assets/**'
   workflow_dispatch:
 
 permissions: {}
