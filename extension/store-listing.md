@@ -67,7 +67,7 @@ Reviewers will install and run the extension, so do this first:
 1. `screenshot-home.png` — "Open the site. Press Transfer."
 2. `screenshot-transfer.png` — "Copy it. Lock it if you want." (plain by default, optional encryption, 5-minute limit)
 3. `screenshot-receive.png` — "Paste it. Check what moves."
-4. `screenshot-restored.png` — "Logged in. Checked."
+4. `screenshot-restored.png` — "Restored. Then checked."
 
 The four screenshots are made from the real popup: `cd extension && npm run build && STORE_ASSETS=1 TZ=UTC npx playwright test e2e/store-shots.spec.ts`. Captions live in that spec. The two tiles are rendered from `store-assets/tiles.html` (instructions in its first lines).
 

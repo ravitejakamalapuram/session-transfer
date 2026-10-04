@@ -19,7 +19,7 @@ const SHOTS = {
   home: { eyebrow: 'STEP 1 · PICK A SITE', title: 'Open the site.<br>Press <em>Transfer</em>.', text: 'See what will move before anything leaves the browser: cookies, localStorage, sessionStorage, IndexedDB and Cache Storage.' },
   transfer: { eyebrow: 'STEP 2 · COPY THE PACKAGE', title: 'Copy it.<br>Lock it if you <em>want</em>.', text: 'Plain by default, so treat it like a password. Turn on "Encrypt with a transfer code" for AES-256-GCM. Packages older than 5 minutes are refused.' },
   receive: { eyebrow: 'STEP 3 · ON THE OTHER BROWSER', title: 'Paste it.<br>Check <em>what moves</em>.', text: 'A package can only be restored into its own website. You see the counts, then choose Replace, Merge or Cancel.' },
-  restored: { eyebrow: 'DONE · CHECKED', title: 'Logged in.<br><em>Checked.</em>', text: 'After restoring, the extension reads every value back and tells you what matched. Nothing is reported as done unless it was.' },
+  restored: { eyebrow: 'DONE · CHECKED', title: 'Restored.<br><em>Then checked.</em>', text: 'After restoring, the extension reads the values back and reports what matched and what did not.' },
 } as const;
 
 /** Serve the local fixture under a fixed https host, cookies included. */

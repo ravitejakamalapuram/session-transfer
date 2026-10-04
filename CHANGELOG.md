@@ -59,7 +59,10 @@ tag (release-platform stamps it into the built manifest), so the numbers below m
 - The destination backup before Replace (it stored its own decryption code and
   could not be restored). Backups left by 1.2.x are deleted on update.
 
-## [Unreleased]
+## [1.2.2 / 1.2.3]
+
+Superseded by 1.3.0: packages are plain by default and the setting is now "Encrypt with a transfer code". Kept as
+written at the time.
 
 ### Changed
 - **The transfer code is now optional and off by default.** Packages are still

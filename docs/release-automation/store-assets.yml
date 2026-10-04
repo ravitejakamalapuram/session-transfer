@@ -1,10 +1,11 @@
 # Keeps the Chrome Web Store screenshots in step with the real popup.
-#   pull_request: regenerates them; fails if extension/store-assets/ would change, so a UI change
-#                 cannot merge with stale store images unnoticed.
-#   Run workflow (pick the PR branch in "Use workflow from"): regenerates and commits the new images.
-#                 Commits made with GITHUB_TOKEN do not start other workflows: close and reopen the PR
-#                 afterwards so `ci` runs on the new head.
-# Do NOT mark this check as required until a refresh run on the runner has produced the baseline.
+#   check:   on a pull request that touches popup code, regenerates the screenshots and fails if
+#            extension/store-assets/ would change, so a UI change cannot merge with stale store images.
+#            Read-only token; no credentials are kept for the PR code it runs.
+#   refresh: "Run workflow" (pick the PR branch under "Use workflow from") regenerates and commits the
+#            new images. Commits made with GITHUB_TOKEN do not start other workflows: close and reopen
+#            the PR afterwards so `ci` runs on the new head.
+# Do NOT mark `check` as required until a refresh run on the runner has produced the baseline.
 name: store-assets
 
 on:
@@ -18,16 +19,50 @@ on:
       - 'extension/e2e/store-shots.spec.ts'
   workflow_dispatch:
 
-permissions:
-  contents: write # refresh commits to the chosen branch; the pull_request run is read-only in practice
+permissions: {}
 
 concurrency:
   group: store-assets-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  shots:
+  check:
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: extension
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: extension/package-lock.json
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npx vite build
+      - run: npx playwright test e2e/store-shots.spec.ts
+        env:
+          STORE_ASSETS: '1'
+          TZ: UTC
+      - name: Stale store images fail the pull request
+        working-directory: .
+        run: |
+          if ! git diff --exit-code --stat -- extension/store-assets; then
+            echo "::error::The popup no longer matches the store screenshots. Run the 'store-assets' workflow on this branch (Actions > store-assets > Run workflow > Use workflow from), then close and reopen this PR."
+            exit 1
+          fi
+
+  refresh:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # commits the refreshed images to the selected branch
     defaults:
       run:
         working-directory: extension
@@ -45,16 +80,7 @@ jobs:
         env:
           STORE_ASSETS: '1'
           TZ: UTC
-      - name: Stale store images fail the pull request
-        if: github.event_name == 'pull_request'
-        working-directory: .
-        run: |
-          if ! git diff --exit-code --stat -- extension/store-assets; then
-            echo "::error::The popup no longer matches the store screenshots. Run the 'store-assets' workflow on this branch (Actions > store-assets > Run workflow > Use workflow from), then close and reopen this PR."
-            exit 1
-          fi
       - name: Commit refreshed images
-        if: github.event_name == 'workflow_dispatch'
         working-directory: .
         run: |
           git add extension/store-assets/screenshot-*.png
