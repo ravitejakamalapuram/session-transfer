@@ -6,8 +6,8 @@ on:
       bump:
         description: "Version bump"
         type: choice
-        options: [auto, patch, minor, major]
-        default: auto
+        options: [patch, minor, major, auto]
+        default: patch
       dry_run:
         description: "Dry run (build + package only; no upload, no tag)"
         type: boolean
@@ -20,10 +20,23 @@ on:
         description: "Chrome Web Store publish type"
         type: choice
         options: [default, staged]
-        default: staged
-  # Optional: release on every merge to main.
-  # push:
-  #   branches: [main]
+        default: default
+  # Release on every merge to main that changes what ships in the extension zip. Docs, tests, CI,
+  # release.yaml, the store listing and store images never release. Push runs are always a patch
+  # bump; use "Run workflow" for a minor or major.
+  push:
+    branches: [main]
+    paths:
+      - 'extension/src/**'
+      - '!extension/src/**/*.test.ts'
+      - '!extension/src/**/*.test.tsx'
+      - 'extension/index.html'
+      - 'extension/icons/**'
+      - 'extension/manifest.config.ts'
+      - 'extension/vite.config.ts'
+      - 'extension/tsconfig.json'
+      - 'extension/package.json'
+      - 'extension/package-lock.json'
 
 permissions: {}
 
@@ -34,8 +47,7 @@ jobs:
       id-token: write # keyless Google auth (OIDC -> Workload Identity Federation)
     uses: ravitejakamalapuram/release-platform/.github/workflows/release.yml@v2
     with:
-      bump: ${{ inputs.bump || 'auto' }}
+      bump: ${{ inputs.bump || 'patch' }}
       dry_run: ${{ inputs.dry_run || false }}
       targets: ${{ inputs.targets || '' }}
-      publish_type: ${{ inputs.publish_type || 'staged' }}
-    secrets: inherit # Android only: upload-key secrets. Chrome needs no secrets at all.
+      publish_type: ${{ inputs.publish_type || 'default' }}
