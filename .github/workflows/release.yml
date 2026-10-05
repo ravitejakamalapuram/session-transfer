@@ -35,6 +35,7 @@ on:
       - 'extension/manifest.config.ts'
       - 'extension/vite.config.ts'
       - 'extension/tsconfig.json'
+      - 'extension/package.json'
       - 'extension/package-lock.json'
 
 permissions: {}
