@@ -30,8 +30,9 @@ does not happen.
     a short code could then be brute-forced offline by whoever runs the Worker.
 - **Encrypt at the app layer, not only with WebRTC's DTLS.** The Worker relays the SDP, so it could
   swap DTLS fingerprints and sit in the middle. AES-GCM with the code-derived key over the data
-  channel means a middleman only ever sees ciphertext. Optionally bind the session by sending an
-  HMAC (keyed from `secret`) over both DTLS fingerprints as the first message, and abort on mismatch.
+  channel means a middleman only ever sees ciphertext. v1 also binds the session: each side's first
+  message is an HMAC (keyed from `secret`) over both DTLS fingerprints, and either side aborts on
+  mismatch before any package bytes are sent.
 - **Long generated code in v1, no PAKE.** The extension generates the code (about 32 base32
   characters) and the user copies it to the other laptop over a second channel. A short typeable
   code ("7-guitar-ocean") is only safe with a PAKE (SPAKE2 / CPace), which WebCrypto lacks; that
@@ -46,14 +47,20 @@ does not happen.
    with a `managed_schema`) so companies can disable export/import. State plainly in the listing
    that the tool is for the user's own accounts and for QA.
 3. **WebRTC transfer** (this plan), only once there is demand:
-   1. Signaling Worker: `POST /room/:roomId` (offer), `GET` (poll for answer), TTL = 5 min,
-      rate-limited per IP, stores nothing but SDP/ICE. Repo location to decide (likely a reusable
-      worker in release-platform or appforge-kit if another app can share it).
+   1. Signaling Worker, rate-limited per IP, TTL = 5 min, stores nothing but SDP. ICE uses
+      non-trickle gathering: each side waits for `iceGatheringState === 'complete'` and sends one
+      SDP that already carries its candidates, so there is no separate ICE endpoint.
+      - Sender: `PUT /room/:roomId/offer` with its SDP, then polls `GET /room/:roomId/answer`.
+      - Receiver: `GET /room/:roomId/offer`, then `PUT /room/:roomId/answer` with its SDP.
+      - The room is deleted once the answer is read, or at TTL.
+      - Repo location to decide (likely a reusable worker in release-platform or appforge-kit if
+        another app can share it).
    2. Offscreen document (`chrome.offscreen`, reason `WEB_RTC`) owns the `RTCPeerConnection`,
       because the service worker has no WebRTC and the popup closes when it loses focus.
       Adds the `offscreen` permission (no install warning) and the Worker origin.
    3. Sender: build the package as today with `keyMode: 'code'`, show the combined code, open the
-      room, send ciphertext in chunks over the data channel.
+      room, exchange the fingerprint-binding HMAC, then send ciphertext in chunks over the data
+      channel.
    4. Receiver: "Receive from another laptop" field takes the code, joins the room, reassembles,
       then runs the existing import/restore path unchanged (origin binding, expiry checks).
    5. Failure path: after a connect timeout, offer the encrypted file / copy flow with the same code.
