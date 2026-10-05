@@ -6,8 +6,9 @@ Pick it up only after steps 1 and 2 below ship and QA users ask for direct trans
 ## Goal
 
 Move a session package from Chrome on laptop A to Chrome on laptop B while both are open,
-without copying a file or a block of text. Nothing is stored anywhere; if either side is
-offline, the transfer does not happen.
+without copying a file or a block of text. Package bytes are never stored on a server; the
+signaling Worker briefly holds only SDP/ICE for pairing. If either side is offline, the transfer
+does not happen.
 
 ## Decisions
 
@@ -73,5 +74,6 @@ offline, the transfer does not happen.
   whatever the transport, and Chrome's Device Bound Session Credentials will make some sessions
   fail on the second machine by design. Document this; do not try to evade it.
 - The Worker is new infrastructure (small, free tier), so it needs monitoring and an abuse limit.
-- Adding a network endpoint changes the privacy policy and store disclosures; update both in the
-  same release.
+- Adding a network endpoint changes the privacy policy and store disclosures. Today's README,
+  PRIVACY.md and listing say "fully local, no server"; keep those claims until launch, then
+  rewrite them (and scope any "nothing is stored" wording to package bytes) in the same release.
