@@ -16,7 +16,7 @@ export default defineManifest({
   name: 'Session Transfer – Copy Login to Another Chrome Profile',
   version: pkg.version,
   description:
-    'Move your login (cookies + storage) to another Chrome profile or computer, or export as Playwright storageState. Encrypted, local.',
+    'Move your login (cookies + storage) to another Chrome profile or computer, encrypted. Or export a plain Playwright storageState.',
   action: {
     default_popup: 'index.html',
     default_title: 'Session Transfer',

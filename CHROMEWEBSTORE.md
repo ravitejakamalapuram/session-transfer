@@ -24,7 +24,7 @@
 Chosen by the owner on 2026-10-17 so the title carries the words people search for. The toolbar tooltip and the popup header still say `Session Transfer`. Keep `name` in `extension/manifest.config.ts`, `chrome-store/store.config.json` and `app-metadata.json` the same.
 
 ### Short Description (max 132 characters)
-> Move your login (cookies + storage) to another Chrome profile or computer, or export as Playwright storageState. Encrypted, local.
+> Move your login (cookies + storage) to another Chrome profile or computer, encrypted. Or export a plain Playwright storageState.
 
 ### Detailed Description
 ```markdown
@@ -35,7 +35,7 @@ No servers, no account, no analytics: the extension makes no network requests. P
 HOW IT WORKS
 1. In the source browser, open the site, click the extension and press "Transfer Session".
 2. The extension packs the site's cookies (including HttpOnly), localStorage, sessionStorage, IndexedDB and Cache Storage into one package that you copy or download, encrypted with a transfer code by default.
-3. In the destination browser, press "Receive Session" paste or load the package and enter the transfer code. The session is restored, the page reloads, and the popup shows a verification report of what was written.
+3. In the destination browser, press "Receive Session" paste or load the package and enter the transfer code if it asks for one. The session is restored, the page reloads, and the popup shows a verification report of what was written.
 
 PRIVACY AND LIMITS
 • Encrypted by default with AES-256-GCM, using a key derived from a transfer code you send on another channel (PBKDF2-SHA256, 600,000 iterations). "Skip the code (same computer only)" makes a plain package instead; treat that like a password.
@@ -45,7 +45,7 @@ PRIVACY AND LIMITS
 • Passkeys/WebAuthn, hardware-backed credentials and TLS-bound state cannot be transferred, and the popup says so. Some sites tie a session to a device and may still ask you to sign in.
 
 FOR DEVELOPERS AND QA
-• "Export for Playwright" (under More options) saves the current site's cookies (except partitioned CHIPS cookies) and localStorage as a Playwright storageState .json file, so automated tests can start already logged in. sessionStorage and IndexedDB are not included, and the file holds live logins.
+• "Export for Playwright" (under More options) saves the current site's cookies (except partitioned CHIPS cookies) and localStorage as a plain (unencrypted) Playwright storageState .json file, so automated tests can start already logged in. sessionStorage and IndexedDB are not included, and the file holds live logins.
 • Signing in through another site? Add its host name (up to 5) under More options and its cookies are added to the package.
 
 IDEAL FOR
