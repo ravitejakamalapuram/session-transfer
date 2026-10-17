@@ -14,6 +14,10 @@ tag (release-platform stamps it into the built manifest), so the numbers below m
   is not a package, and accepts a package up to one minute past expiry to allow for clock differences.
 - Popup hints are easier to read (lighter muted text, nothing below 11px) and keyboard focus now shows a visible ring.
 
+### Added
+- A local welcome page opens once after the first install (not on updates) with the three transfer steps, how to pin
+  the icon and the 5-minute package window.
+
 ### Changed
 - Store screenshots are generated from the real popup (`e2e/store-shots.spec.ts`) and the promo tiles no longer claim
   encryption by default; the old images still showed backups and an always-required code.
