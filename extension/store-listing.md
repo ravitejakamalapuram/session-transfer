@@ -28,7 +28,7 @@ Reviewers will install and run the extension, so do this first:
 
 ## STEP 3 — Store listing tab (copy-paste ready)
 
-**Name:** Session Transfer
+**Name:** Session Transfer – Copy Login to Another Chrome Profile
 
 **Summary (short description, ≤132 chars):**
 > Move your login (cookies + storage) to another Chrome profile or computer, or export it as Playwright storageState. Local only.
@@ -51,7 +51,7 @@ Reviewers will install and run the extension, so do this first:
 > • Passkeys/WebAuthn, hardware-backed credentials and TLS-bound state cannot be transferred, and the popup says so. Some sites tie a session to a device and may still ask you to sign in.
 >
 > FOR DEVELOPERS AND QA
-> • "Export for Playwright" (under More options) saves the current site's cookies and localStorage as a Playwright storageState .json file, so automated tests can start already logged in. sessionStorage and IndexedDB are not included, and the file holds live logins.
+> • "Export for Playwright" (under More options) saves the current site's cookies (except partitioned CHIPS cookies) and localStorage as a Playwright storageState .json file, so automated tests can start already logged in. sessionStorage and IndexedDB are not included, and the file holds live logins.
 > • Signing in through another site? Add its host name (up to 5) under More options and its cookies are added to the package.
 >
 > IDEAL FOR
@@ -87,10 +87,10 @@ The four screenshots are made from the real popup: `cd extension && npm run buil
 > Session Transfer exports and imports the session state of a user-selected website (cookies and origin storage) so the user can continue a logged-in session in another Chrome profile or device. Encryption with a transfer code is optional and off by default.
 
 **Permission justifications:**
-- **cookies** — "Reading and restoring cookies (including HttpOnly/Secure) is the core mechanism for transferring authenticated sessions. Cookies are only accessed for the origin the user explicitly selects."
+- **cookies** — "Reading and restoring cookies (including HttpOnly/Secure) is the core mechanism for transferring authenticated sessions. Cookies are accessed only for the selected origin and for up to 5 host names the user adds under More options."
 - **scripting** — "Used to run an on-demand, user-initiated collect/restore function in the active tab to read/write that origin's localStorage, sessionStorage, IndexedDB and Cache Storage. No code runs automatically on page load."
 - **storage** — "Keeps the on-device setting and a short-lived ready result while the popup is closed. Never synced, never transmitted."
-- **host_permissions (http/https)** — "The product's purpose is transferring sessions for any website the user is logged into, so a fixed host list is impossible. Access is on-demand (user clicks the toolbar action), strictly limited to the selected origin, and cross-origin mixing is cryptographically prevented (origin bound as AEAD authenticated data)."
+- **host_permissions (http/https)** — "The product's purpose is transferring sessions for any website the user is logged into, so a fixed host list is impossible. Access is on-demand (user clicks the toolbar action), page scripting is limited to the selected origin, cookie reads also cover up to 5 host names the user adds under More options, and cross-origin mixing is cryptographically prevented (origin bound as AEAD authenticated data)."
 
 **Remote code:** "No — this extension does not use remote code."
 
