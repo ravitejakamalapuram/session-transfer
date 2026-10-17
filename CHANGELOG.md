@@ -5,6 +5,9 @@ tag (release-platform stamps it into the built manifest), so the numbers below m
 
 ## [Unreleased]
 
+### Changed
+- The store listing description now links the threat model on GitHub.
+
 ### Fixed
 - Replace no longer removes cookies of an unrelated subdomain, and now removes leftover partitioned cookies from their
   own partition.
