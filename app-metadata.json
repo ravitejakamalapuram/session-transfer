@@ -5,7 +5,7 @@
   "description": "Chrome extension that moves an authenticated browser session (cookies, localStorage, sessionStorage, IndexedDB, Cache Storage) between Chrome profiles or devices, with optional encryption and fully local.",
   "modules": [
     {
-      "name": "Session Transfer",
+      "name": "Session Transfer – Copy Login to Another Chrome Profile",
       "type": "chrome-extension",
       "path": "extension/dist",
       "status": "draft",

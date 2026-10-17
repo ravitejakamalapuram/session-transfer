@@ -13,7 +13,7 @@ import pkg from './package.json' with { type: 'json' };
 //                   is on-demand only, triggered explicitly by the user from the popup.
 export default defineManifest({
   manifest_version: 3,
-  name: 'Session Transfer',
+  name: 'Session Transfer – Copy Login to Another Chrome Profile',
   version: pkg.version,
   description:
     'Move your login (cookies + storage) to another Chrome profile or computer, or export it as Playwright storageState. Local only.',

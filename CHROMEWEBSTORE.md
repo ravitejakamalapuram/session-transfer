@@ -18,8 +18,10 @@
 
 ## 2. Store Listing Copy
 
-### Recommended title (owner decision, not applied)
-The name field is still `Session Transfer`. A name that carries the words people search for would be, for example, **Session Transfer – Copy Login to Another Chrome Profile** (52 characters; the store allows 75). Renaming changes the brand in the toolbar, the store page and the screenshots, so it is left for the owner to decide. To apply it, change `name` in `extension/manifest.config.ts`, `chrome-store/store.config.json` and `app-metadata.json` together.
+### Title (max 75 characters)
+> Session Transfer – Copy Login to Another Chrome Profile
+
+Chosen by the owner on 2026-10-17 so the title carries the words people search for. The toolbar tooltip and the popup header still say `Session Transfer`. Keep `name` in `extension/manifest.config.ts`, `chrome-store/store.config.json` and `app-metadata.json` the same.
 
 ### Short Description (max 132 characters)
 > Move your login (cookies + storage) to another Chrome profile or computer, or export it as Playwright storageState. Local only.
