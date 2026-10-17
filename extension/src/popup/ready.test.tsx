@@ -4,6 +4,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import {
   clearReadyResult,
   Collected,
+  collectionWarning,
   countdown,
   loadReadyResult,
   needsDoneGuard,
@@ -12,6 +13,7 @@ import {
   Saved,
   saveReadyResult,
 } from './ready';
+import { TransferComponentResult } from '../core/types';
 import popupSource from './App.tsx?raw';
 import readySource from './ready.tsx?raw';
 
@@ -37,7 +39,7 @@ function collected(expiresAt = Date.now() + 5 * 60_000, code: string | null = 'A
       ciphertext: 'CIPHERTEXT',
     } as unknown as Collected['pkg'],
     code,
-    results: [],
+    results: [{ component: 'cookies', status: 'success', itemCount: 3 }],
     unsupported: [],
     sizeBytes: 43_008,
   };
@@ -188,6 +190,39 @@ describe('Ready result kept across popup close (chrome.storage.session)', () => 
     await clearReadyResult(area);
     assert.ok(!('readyResult' in area.data));
     assert.equal(await loadReadyResult(area, NOW), null);
+  });
+});
+
+describe('collection warning', () => {
+  const ok = (component: TransferComponentResult['component'], itemCount = 0): TransferComponentResult => ({ component, status: 'success', itemCount });
+
+  it('no warning when every area was read and something was found', () => {
+    assert.equal(collectionWarning([ok('cookies', 4), ok('localStorage'), { component: 'cacheStorage', status: 'unsupported' }]), null);
+  });
+
+  it('names failed and partial areas', () => {
+    const w = collectionWarning([
+      { component: 'cookies', status: 'failed', itemCount: 0 },
+      ok('localStorage', 2),
+      { component: 'indexedDB', status: 'partial', itemCount: 5 },
+    ]);
+    assert.equal(w, "Couldn't read Cookies. Only part of IndexedDB was copied. The session may not work fully on the other browser.");
+  });
+
+  it('says so when nothing was found', () => {
+    assert.match(collectionWarning([ok('cookies'), ok('localStorage')])!, /Nothing was found/);
+  });
+
+  it('Ready shows the warning icon and text instead of the green check', () => {
+    const c = collected();
+    c.results = [{ component: 'cookies', status: 'failed', itemCount: 0 }];
+    const html = renderToStaticMarkup(
+      <Ready collected={c} saved={{ package: false, code: false }} guard={false} showDetails={false} setShowDetails={noop} copied={null}
+        onCopyCode={noop} onCopyPackage={noop} onDownload={noop} onDone={noop} onGoBack={noop} onLeave={noop} onExpired={noop} />,
+    );
+    assert.ok(html.includes('big-check warn'));
+    assert.ok(html.includes("Couldn&#x27;t read Cookies."));
+    assert.ok(!renderReady({ package: false, code: false }).includes('collect-warning'));
   });
 });
 
