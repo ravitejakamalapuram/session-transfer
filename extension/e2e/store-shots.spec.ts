@@ -113,6 +113,7 @@ test('regenerate the four store screenshots from the real popup', async ({ h, b 
   await r.popup.getByTestId('conflict-replace').click();
   await r.popup.getByTestId('conflict-continue-button').click();
   await expect(r.popup.getByTestId('verification-status')).toContainText('Passed', { timeout: 30_000 });
+  await r.popup.getByTestId('review-ask-dismiss').click(); // keep the one-time review ask out of the listing shot
   png.restored = await shoot(r.popup);
 
   for (const name of Object.keys(SHOTS) as (keyof typeof SHOTS)[]) await frame(stage, name, png[name]);

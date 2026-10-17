@@ -5,6 +5,10 @@ tag (release-platform stamps it into the built manifest), so the numbers below m
 
 ## [Unreleased]
 
+### Added
+- After a restore that passes verification, the popup asks once, ever, for a Chrome Web Store review ("Rate it" or
+  "Not now"). Only a local flag remembers it was asked; nothing is sent anywhere.
+
 ### Fixed
 - Replace no longer removes cookies of an unrelated subdomain, and now removes leftover partitioned cookies from their
   own partition.

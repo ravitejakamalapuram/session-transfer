@@ -51,6 +51,10 @@ test('A. default package is plain: no encryption, readable payload, no code, ful
   await expect(r.popup.getByTestId('code-input')).toHaveCount(0);
   await importWith(r.popup, 'replace');
   await expect(r.popup.getByTestId('verification-status')).toContainText('Passed');
+  // A verified restore asks once for a review; "Not now" hides it.
+  await expect(r.popup.getByTestId('review-ask')).toBeVisible();
+  await r.popup.getByTestId('review-ask-dismiss').click();
+  await expect(r.popup.getByTestId('review-ask')).toHaveCount(0);
   await expect.poll(() => ls(r.site, 'marker'), { timeout: 15_000 }).toBe(value);
   expect(await cookie(b, h.fixture.origin, 'marker')).toBe(value);
 });

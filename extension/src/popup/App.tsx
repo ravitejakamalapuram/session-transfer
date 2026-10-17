@@ -12,6 +12,7 @@ import {
   StatusIcon,
   timeAgo,
 } from './components/ui';
+import { ReviewAsk } from './review-ask';
 import { clearReadyResult, Collected, loadReadyResult, needsDoneGuard, Ready, saveReadyResult, Saved } from './ready';
 import {
   ConflictStrategy,
@@ -925,6 +926,8 @@ function Restored({ data, onOpen, onDone }: { data: { report: VerificationReport
       <div className={`callout ${report.passed ? 'ok' : 'warn'}`} data-testid="verification-status">
         Verification: {report.passed ? 'Passed' : 'Partial'} · {report.reloaded ? 'page reloaded' : 'reload manually'}
       </div>
+
+      {report.passed && <ReviewAsk url={FEEDBACK_URL} />}
 
       <div className="callout warn">
         Some state can never be transferred (WebAuthn / passkeys, hardware credentials). You may still need to verify
