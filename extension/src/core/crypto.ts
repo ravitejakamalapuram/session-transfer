@@ -5,7 +5,7 @@
 //   - crypto.getRandomValues for key / salt / iv / transfer code / id
 // No custom cryptography.
 
-import { LEGACY_PBKDF2_ITERATIONS, MAX_PACKAGE_LIFETIME_MS, MAX_PBKDF2_ITERATIONS, PBKDF2_ITERATIONS } from './limits';
+import { CLOCK_SKEW_MS, LEGACY_PBKDF2_ITERATIONS, MAX_PACKAGE_LIFETIME_MS, MAX_PBKDF2_ITERATIONS, PBKDF2_ITERATIONS } from './limits';
 import { bytesToBase64, base64ToBytes, strToBytes, bytesToStr } from './encoding';
 import {
   EncryptedPackage,
@@ -196,7 +196,7 @@ export function checkPackage(
   if (typeof pkg.expiresAt !== 'number' || typeof pkg.createdAt !== 'number') {
     throw new DecryptError('Package is incomplete or damaged.');
   }
-  if (now > pkg.expiresAt) throw new DecryptError('This transfer has expired.');
+  if (now > pkg.expiresAt + CLOCK_SKEW_MS) throw new DecryptError('This package has expired. Start a new transfer on the other browser.');
   if (pkg.expiresAt - pkg.createdAt > maxLifetimeMs) {
     throw new DecryptError('Package is invalid: its lifetime is longer than a transfer allows.');
   }

@@ -126,6 +126,7 @@ export default function App() {
   const [errorMsg, setErrorMsg] = useState('');
   const [collecting, setCollecting] = useState(false);
   const [retry, setRetry] = useState<(() => void) | null>(null);
+  const [receiveError, setReceiveError] = useState(false);
 
   const restoreOpts = useRef<{ confirmOriginMismatch?: boolean; conflict?: ConflictStrategy }>({});
   const cleanup = useRef<(() => void) | null>(null);
@@ -174,9 +175,10 @@ export default function App() {
     if (view === 'ready' && collected) saveReadyResult({ collected, saved });
   }, [view, collected, saved]);
 
-  const toError = (m: string, onRetry: (() => void) | null = null) => {
+  const toError = (m: string, onRetry: (() => void) | null = null, fromReceive = false) => {
     setErrorMsg(m);
     setRetry(onRetry ? () => onRetry : null);
+    setReceiveError(fromReceive);
     setView('error');
   };
 
@@ -234,7 +236,7 @@ export default function App() {
         setCodeNeeded(true);
         setView('receive');
       } else if (msg.type === 'error') {
-        toError(msg.message);
+        toError(msg.message, null, true);
       }
     });
   }, [packageText, code]);
@@ -261,7 +263,7 @@ export default function App() {
             setReport({ report: msg.report });
             setView('restored');
           } else if (msg.type === 'error') {
-            toError(msg.message);
+            toError(msg.message, null, true);
           }
         },
       );
@@ -337,7 +339,7 @@ export default function App() {
     setFileName(file.name);
     const reader = new FileReader();
     reader.onload = () => setPackageText(String(reader.result ?? ''));
-    reader.onerror = () => toError('Could not read the file.');
+    reader.onerror = () => toError('Could not read the file.', null, true);
     reader.readAsText(file);
   };
 
@@ -386,6 +388,16 @@ export default function App() {
     setConflict(null);
     setReport(null);
     restoreOpts.current = {};
+  };
+
+  // A receive error goes back to the Receive screen with the pasted package and code kept.
+  const backToReceive = () => {
+    cleanup.current?.();
+    setSummary(null);
+    setMismatch(null);
+    setConflict(null);
+    restoreOpts.current = {};
+    setView('receive');
   };
 
   // ================================================================ render
@@ -514,7 +526,7 @@ export default function App() {
                 Retry
               </Button>
             )}
-            <Button testid="error-back" variant="ghost" onClick={reset}>
+            <Button testid="error-back" variant="ghost" onClick={receiveError ? backToReceive : reset}>
               Back
             </Button>
           </div>
@@ -757,7 +769,7 @@ function Receive({
       )}
 
       {packageText.length > LARGE_PACKAGE_CHARS ? (
-        <div className="callout info" style={{ fontSize: 10 }} data-testid="package-loaded-large">
+        <div className="callout info" data-testid="package-loaded-large">
           Large package loaded ({(packageText.length / 1024 / 1024).toFixed(0)} MB). It is not shown here.
         </div>
       ) : (
@@ -788,7 +800,7 @@ function Receive({
 
       <div className="spacer" />
       {missing && (
-        <div className="callout info" style={{ fontSize: 10 }} data-testid="receive-missing-hint">
+        <div className="callout info" data-testid="receive-missing-hint">
           {missing}
         </div>
       )}
@@ -822,7 +834,7 @@ function InspectReady({ summary, onImport, onBack }: { summary: PayloadSummary; 
       </div>
 
       {summary.unsupported.length > 0 && (
-        <div className="callout warn" style={{ fontSize: 10 }}>
+        <div className="callout warn">
           Not restored (by design): WebAuthn / passkeys, hardware credentials, TLS state.
         </div>
       )}
@@ -914,7 +926,7 @@ function Restored({ data, onOpen, onDone }: { data: { report: VerificationReport
         Verification: {report.passed ? 'Passed' : 'Partial'} · {report.reloaded ? 'page reloaded' : 'reload manually'}
       </div>
 
-      <div className="callout warn" style={{ fontSize: 10 }}>
+      <div className="callout warn">
         Some state can never be transferred (WebAuthn / passkeys, hardware credentials). You may still need to verify
         those on this device.
       </div>
