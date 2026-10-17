@@ -43,7 +43,8 @@ function waitForComplete(tabId: number, timeoutMs = 20000): Promise<void> {
  */
 export async function resolveDestinationTab(origin: string): Promise<chrome.tabs.Tab> {
   const tabs = await chrome.tabs.query({});
-  const existing = tabs.find((t) => t.url && originOf(t.url) === origin);
+  // A discarded tab does not load while inactive, so scripts could not run in it.
+  const existing = tabs.find((t) => !t.discarded && t.url && originOf(t.url) === origin);
   if (existing && existing.id != null) {
     await waitForComplete(existing.id);
     return existing;
