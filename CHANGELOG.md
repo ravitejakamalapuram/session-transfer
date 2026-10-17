@@ -10,6 +10,8 @@ tag (release-platform stamps it into the built manifest), so the numbers below m
   own partition.
 - The popup header said "AES-256-GCM · local only" even for the default plain package. It now reads "Move a logged-in
   session".
+- Receive keeps the pasted package and code after an error such as a wrong code, says plainly when the pasted text
+  is not a package, and accepts a package up to one minute past expiry to allow for clock differences.
 
 ### Changed
 - Store screenshots are generated from the real popup (`e2e/store-shots.spec.ts`) and the promo tiles no longer claim
