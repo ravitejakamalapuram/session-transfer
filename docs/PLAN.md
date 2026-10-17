@@ -35,6 +35,9 @@ reason, so it is not picked up again by accident. Design rules for UI work: [`de
 | 10 | Keyboard-reachable file picker, labels on package/code fields, `aria-live` on progress | Accessibility checklist in the design reference. | S |
 | 11 | Submit the same build to Microsoft Edge Add-ons | Free second store, same Chromium build; Edge users search for the same thing. Run the Playwright suite on Edge first. | S (user) |
 | 12 | One how-to page per search question on the GitHub Pages site (see `GROWTH_PLAN.md` section 5) | Search traffic that ends on the store page. | M |
+| 13 | Promo video in the listing (issue #27) after the release | A short demo lifts listing conversion. A 46 s teaser exists on `claude/cinematic-teaser-video-2m70gb`; re-record it on the new screens. Upload to YouTube needs the owner. | S |
+| 14 | Link the threat model from the listing and README; drop the stale "Roadmap (post-MVP)" in `extension/README.md` | Cheap trust signal for a tool that handles logins (`GROWTH_PLAN.md` section 3). | S |
+| 15 | Test once on Brave, Opera and Vivaldi and list them in the README | Lets the listing name browsers people search for (`GROWTH_PLAN.md` section 6). | S |
 
 ## Later (only if the numbers justify it)
 
@@ -42,6 +45,8 @@ reason, so it is not picked up again by accident. Design rules for UI work: [`de
   story; only if users ask.
 - File drop on the Receive screen.
 - Firefox port (different background and scripting APIs).
+- Admin kill switch through `chrome.storage.managed` (step 2 of the WebRTC plan). Only if a company asks to allow
+  the extension; it adds nothing for individual installs.
 
 ## Not worth it (decided, do not reopen without new evidence)
 
@@ -49,9 +54,25 @@ reason, so it is not picked up again by accident. Design rules for UI work: [`de
   server to secure and pay for.
 - **General cookie editor.** Cookie-Editor owns that market; it dilutes the "move a whole session" position.
 - **Chasing the Featured badge.** Google is not taking requests and the criteria are not published.
-- **Live laptop-to-laptop transfer over WebRTC** (`extension/docs/cross-device-transfer-plan.md`, already parked).
-  Needs a signalling Worker to run and secure, and copy/paste already works. Keep it parked until users ask for it.
+- **Live laptop-to-laptop transfer over WebRTC** (`extension/docs/cross-device-transfer-plan.md`, PR #29, parked
+  2026-10-05). Needs a Cloudflare signalling Worker to run, secure and rate-limit, an offscreen document, a 32-character
+  code, and a rewrite of the privacy policy, because the "nothing leaves your computer" promise changes. It only helps
+  when the two browsers are on different computers; the main use (another profile on the same computer, now the
+  listing title) gains nothing. Revive when users ask for it in reviews or issues, not before.
+- **Encryption on by default** (step 1 of the WebRTC plan). 1.3.0 (#21) made packages plain by default with
+  encryption as one switch, so the common same-computer move is one step. Keep that unless WebRTC is revived.
+- **QR pairing and a one-time-code relay** (old README roadmap, deleted `memory/PRD.md`). Superseded by the WebRTC plan.
+- **Command-line helper for Playwright `storageState`** (`GROWTH_PLAN.md` section 7). The popup already exports
+  `storageState` since 1.4.0.
+- **Field-level merge** (old README roadmap, PRD P2). Whole-item Replace and Merge exist; nobody has asked for more.
 - **In-product analytics.** The privacy policy promises none; measure with store and GitHub numbers instead.
+
+## Where these items came from
+
+Checked on 2026-10-17: every doc on `main`, docs deleted from history, all branches, commit messages, issues and PRs.
+The only earlier plans are `extension/docs/cross-device-transfer-plan.md` (WebRTC), `docs/GROWTH_PLAN.md`, the
+"Roadmap (post-MVP)" in `extension/README.md` and the deleted `memory/PRD.md`. Large-package chunking from the PRD
+already shipped (`packageChunk`, `e2e/large-receive.spec.ts`).
 
 ## Needs the owner
 
