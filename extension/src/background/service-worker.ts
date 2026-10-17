@@ -394,7 +394,7 @@ async function handleRestore(port: chrome.runtime.Port, req: Extract<OpRequest, 
 
   const passed = lines.every((l) => l.ok) && results.every((r) => r.status === 'success');
   logger.info('Session restored', { origin, passed, reloaded });
-  send(port, { type: 'restored', report: { lines, passed, results, reloaded } });
+  send(port, { type: 'restored', report: { lines, passed, results, reloaded }, tabId: tab.id });
 }
 
 /** success = everything written, partial = some, failed = nothing (when something was expected). */
