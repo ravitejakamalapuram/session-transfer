@@ -99,5 +99,5 @@ Minimum text size is **11 px**. Do not add new `style={{ fontSize: 10 }}` overri
 
 ## UX audit: open items
 
-Tracked in [`docs/PLAN.md`](../PLAN.md). `--text-3` contrast, a focus ring on buttons, links and summaries, and the 11 px
+Tracked in [`docs/plans/2026-10-17-roadmap.md`](../plans/2026-10-17-roadmap.md). `--text-3` contrast, a focus ring on buttons, links and summaries, and the 11 px
 minimum are fixed in PR #31.
