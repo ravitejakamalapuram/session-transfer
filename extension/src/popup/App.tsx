@@ -126,6 +126,7 @@ export default function App() {
   const [errorMsg, setErrorMsg] = useState('');
   const [collecting, setCollecting] = useState(false);
   const [retry, setRetry] = useState<(() => void) | null>(null);
+  const [receiveError, setReceiveError] = useState(false);
 
   const restoreOpts = useRef<{ confirmOriginMismatch?: boolean; conflict?: ConflictStrategy }>({});
   const cleanup = useRef<(() => void) | null>(null);
@@ -174,9 +175,10 @@ export default function App() {
     if (view === 'ready' && collected) saveReadyResult({ collected, saved });
   }, [view, collected, saved]);
 
-  const toError = (m: string, onRetry: (() => void) | null = null) => {
+  const toError = (m: string, onRetry: (() => void) | null = null, fromReceive = false) => {
     setErrorMsg(m);
     setRetry(onRetry ? () => onRetry : null);
+    setReceiveError(fromReceive);
     setView('error');
   };
 
@@ -234,7 +236,7 @@ export default function App() {
         setCodeNeeded(true);
         setView('receive');
       } else if (msg.type === 'error') {
-        toError(msg.message);
+        toError(msg.message, null, true);
       }
     });
   }, [packageText, code]);
@@ -261,7 +263,7 @@ export default function App() {
             setReport({ report: msg.report });
             setView('restored');
           } else if (msg.type === 'error') {
-            toError(msg.message);
+            toError(msg.message, null, true);
           }
         },
       );
@@ -337,7 +339,7 @@ export default function App() {
     setFileName(file.name);
     const reader = new FileReader();
     reader.onload = () => setPackageText(String(reader.result ?? ''));
-    reader.onerror = () => toError('Could not read the file.');
+    reader.onerror = () => toError('Could not read the file.', null, true);
     reader.readAsText(file);
   };
 
@@ -386,6 +388,16 @@ export default function App() {
     setConflict(null);
     setReport(null);
     restoreOpts.current = {};
+  };
+
+  // A receive error goes back to the Receive screen with the pasted package and code kept.
+  const backToReceive = () => {
+    cleanup.current?.();
+    setSummary(null);
+    setMismatch(null);
+    setConflict(null);
+    restoreOpts.current = {};
+    setView('receive');
   };
 
   // ================================================================ render
@@ -514,7 +526,7 @@ export default function App() {
                 Retry
               </Button>
             )}
-            <Button testid="error-back" variant="ghost" onClick={reset}>
+            <Button testid="error-back" variant="ghost" onClick={receiveError ? backToReceive : reset}>
               Back
             </Button>
           </div>

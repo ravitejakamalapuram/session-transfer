@@ -4,6 +4,8 @@
 export const TRANSFER_TTL_MS = 5 * 60 * 1000;
 /** A package may not claim to live longer than a transfer does, plus 30 s of clock difference. */
 export const MAX_PACKAGE_LIFETIME_MS = TRANSFER_TTL_MS + 30 * 1000;
+/** The receiver's clock may run this far ahead of the sender's before a package counts as expired. */
+export const CLOCK_SKEW_MS = 60_000;
 /** Hard ceiling for the finished package (after base64). Bigger sessions are refused. */
 export const MAX_PACKAGE_BYTES = 100 * 1024 * 1024;
 /** Above this the popup warns that the package is large. */
