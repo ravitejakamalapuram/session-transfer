@@ -42,7 +42,7 @@ side's IP and user agent, and timing. It never sees the `secret`, the package or
 
 | Risk | Mitigation in v1 |
 | :--- | :--- |
-| IP addresses of both laptops pass through our server | Store nothing beyond the 5-minute room; no request logging in the Worker; say so in PRIVACY.md |
+| IP addresses of both laptops pass through our server | Store nothing beyond the 5-minute room. Turn Workers logs and traces off in the Worker config (`observability.enabled = false`, no `console.log` of requests), and confirm in the dashboard after deploy that no request URL or `roomId` is kept. Only then say so in PRIVACY.md; if Cloudflare keeps any request metadata anyway, PRIVACY.md says what and for how long instead |
 | Someone guesses a `roomId` and joins first | 30-bit room space plus a 5-minute TTL and one answer per room; a wrong joiner still cannot decrypt, and the HMAC check aborts before any bytes are sent |
 | The Worker is used as a free relay or for spam | Rate limit by IP (for example 30 room writes per 10 minutes), a 16 KB cap on each SDP body, CORS limited to the extension's origin |
 | Whoever runs the Worker tampers with SDP to sit in the middle | App-layer AES-GCM plus the fingerprint HMAC from PR #29 |
