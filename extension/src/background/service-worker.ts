@@ -219,7 +219,12 @@ async function handleExportState(port: chrome.runtime.Port, extraDomains: string
 
 // ---------------------------------------------------------------- inspect
 function parsePackage(text: string): EncryptedPackage {
-  const pkg = JSON.parse(text) as EncryptedPackage;
+  let pkg: EncryptedPackage;
+  try {
+    pkg = JSON.parse(text) as EncryptedPackage;
+  } catch {
+    throw new Error("This isn't a Session Transfer package. Paste the whole text or load the .json file.");
+  }
   if (!pkg || pkg.format !== PACKAGE_FORMAT) throw new Error('Unrecognized package format.');
   return pkg;
 }

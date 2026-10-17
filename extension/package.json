@@ -1,7 +1,7 @@
 {
   "name": "session-transfer",
   "version": "1.4.0",
-  "description": "Securely transfer authenticated browser session state (cookies, localStorage, sessionStorage, IndexedDB, Cache Storage) between Chrome profiles/devices. Optional AES-256-GCM encryption, fully local, no server.",
+  "description": "Move your login (cookies, localStorage, sessionStorage, IndexedDB, Cache Storage) to another Chrome profile or computer, or export it as Playwright storageState. Not encrypted by default; optional AES-256-GCM with a transfer code. Local only, no server.",
   "type": "module",
   "private": true,
   "scripts": {
