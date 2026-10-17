@@ -769,7 +769,7 @@ function Receive({
       )}
 
       {packageText.length > LARGE_PACKAGE_CHARS ? (
-        <div className="callout info" style={{ fontSize: 10 }} data-testid="package-loaded-large">
+        <div className="callout info" data-testid="package-loaded-large">
           Large package loaded ({(packageText.length / 1024 / 1024).toFixed(0)} MB). It is not shown here.
         </div>
       ) : (
@@ -800,7 +800,7 @@ function Receive({
 
       <div className="spacer" />
       {missing && (
-        <div className="callout info" style={{ fontSize: 10 }} data-testid="receive-missing-hint">
+        <div className="callout info" data-testid="receive-missing-hint">
           {missing}
         </div>
       )}
@@ -834,7 +834,7 @@ function InspectReady({ summary, onImport, onBack }: { summary: PayloadSummary; 
       </div>
 
       {summary.unsupported.length > 0 && (
-        <div className="callout warn" style={{ fontSize: 10 }}>
+        <div className="callout warn">
           Not restored (by design): WebAuthn / passkeys, hardware credentials, TLS state.
         </div>
       )}
@@ -926,7 +926,7 @@ function Restored({ data, onOpen, onDone }: { data: { report: VerificationReport
         Verification: {report.passed ? 'Passed' : 'Partial'} · {report.reloaded ? 'page reloaded' : 'reload manually'}
       </div>
 
-      <div className="callout warn" style={{ fontSize: 10 }}>
+      <div className="callout warn">
         Some state can never be transferred (WebAuthn / passkeys, hardware credentials). You may still need to verify
         those on this device.
       </div>
