@@ -149,8 +149,10 @@ test('4. code (default): two-step screen, code asked, wrong code writes nothing,
   expect(await lsMarker(r.site)).toBeNull();
   expect(await cookieMarker(b, h.fixture.origin)).toBeNull();
 
+  // Back returns to Receive with the pasted package and the typed code kept.
   await r.popup.getByTestId('error-back').click();
-  await pasteAndContinue(r.popup, text);
+  await expect(r.popup.getByTestId('package-textarea')).toHaveValue(text);
+  await expect(r.popup.getByTestId('code-input')).toHaveValue('AAAA-AAAA-AAAA');
   await r.popup.getByTestId('code-input').fill(code);
   await r.popup.getByTestId('inspect-button').click();
   await expect(r.popup.getByTestId('import-session-button')).toBeVisible({ timeout: 30_000 });
@@ -175,7 +177,7 @@ for (const requireCode of [false, true]) {
     const r = await b.openPopup(FAST);
     await pasteAndContinue(r.popup, JSON.stringify(pkg));
     // refused at the first step, before a code is even asked for
-    await expect(r.popup.getByTestId('error-message')).toContainText('This transfer has expired.');
+    await expect(r.popup.getByTestId('error-message')).toContainText('This package has expired. Start a new transfer on the other browser.');
     await expect(r.popup.getByTestId('code-input')).toHaveCount(0);
     expect(await lsMarker(r.site)).toBeNull();
     expect(await cookieMarker(b, h.fixture.origin)).toBeNull();

@@ -6,7 +6,7 @@
   --border-strong: rgba(16, 185, 129, 0.5);
   --text: #f3f4f6;
   --text-2: #9ca3af;
-  --text-3: #6b7280;
+  --text-3: #8b93a1;
   --accent: #10b981;
   --accent-2: #34d399;
   --cyan: #22d3ee;
@@ -55,7 +55,7 @@ html, body {
   width: 26px; height: 26px; border-radius: 7px; display: block;
 }
 .header .title { font-family: var(--mono); font-size: 13px; font-weight: 700; letter-spacing: 0.02em; }
-.header .sub { font-size: 10px; color: var(--text-3); font-family: var(--mono); }
+.header .sub { font-size: 11px; color: var(--text-3); font-family: var(--mono); }
 
 .body { flex: 1; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
 
@@ -95,6 +95,11 @@ html, body {
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
 }
 .btn:active { transform: translateY(1px); }
+.btn:focus-visible, .link-btn:focus-visible, .footer-link:focus-visible, .more summary:focus-visible,
+.radio:focus-within, .check-row:focus-within {
+  /* A transparent outline still shows in forced-colors mode, where box-shadow is dropped. */
+  outline: 2px solid transparent; box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.35);
+}
 .btn:disabled { opacity: 0.45; cursor: not-allowed; }
 .btn.primary { background: var(--accent); color: #04120c; box-shadow: 0 0 0 1px rgba(16,185,129,0.4), 0 8px 24px rgba(16,185,129,0.20); }
 .btn.primary:hover:not(:disabled) { background: var(--accent-2); box-shadow: 0 0 0 1px rgba(52,211,153,0.6), 0 10px 30px rgba(16,185,129,0.30); }
@@ -152,11 +157,11 @@ html, body {
 .callout.danger { background: rgba(244,63,94,0.08); border: 1px solid rgba(244,63,94,0.3); color: #fecdd3; }
 .callout.ok { background: rgba(16,185,129,0.08); border: 1px solid var(--border-strong); color: #a7f3d0; }
 
-.hint { font-size: 10.5px; color: var(--text-3); text-align: center; font-family: var(--mono); line-height: 1.5; }
+.hint { font-size: 11px; color: var(--text-3); text-align: center; font-family: var(--mono); line-height: 1.5; }
 
 .footer { padding: 10px 16px; border-top: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
-.footer .lock { font-size: 10px; color: var(--text-3); font-family: var(--mono); display: flex; align-items: center; gap: 6px; }
-.footer .footer-link { font-size: 10px; color: var(--text-3); font-family: var(--mono); text-decoration: underline; }
+.footer .lock { font-size: 11px; color: var(--text-3); font-family: var(--mono); display: flex; align-items: center; gap: 6px; }
+.footer .footer-link { font-size: 11px; color: var(--text-3); font-family: var(--mono); text-decoration: underline; }
 .footer .footer-link:hover { color: var(--accent-2); }
 
 .spacer { flex: 1; }
@@ -182,7 +187,7 @@ html, body {
 }
 .radio.sel { border-color: var(--border-strong); background: rgba(16,185,129,0.06); }
 .radio .r-title { font-weight: 700; }
-.radio .r-desc { color: var(--text-3); font-size: 10.5px; margin-top: 2px; }
+.radio .r-desc { color: var(--text-3); font-size: 11px; margin-top: 2px; }
 .radio input { margin-top: 2px; accent-color: var(--accent); }
 
 .check-row { display: flex; align-items: center; gap: 9px; font-family: var(--mono); font-size: 11.5px; color: var(--text-2); cursor: pointer; }
@@ -203,7 +208,7 @@ html, body {
 .step.done { border-color: var(--accent); background: rgba(16,185,129,0.06); }
 .step-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; font-family: var(--mono); }
 .step-title { font-size: 13px; font-weight: 700; }
-.step-what { font-size: 10px; font-weight: 400; color: var(--text-3); margin-left: 4px; }
+.step-what { font-size: 11px; font-weight: 400; color: var(--text-3); margin-left: 4px; }
 .step-status { font-size: 11px; color: var(--text-3); white-space: nowrap; }
 .step.done .step-status, .step-check { color: var(--accent-2); }
 .step-actions { display: flex; gap: 8px; }

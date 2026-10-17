@@ -1,6 +1,6 @@
 # Chrome Web Store Listing & Publishing Record
 
-*Last Updated: 2026-09-20*
+*Last Updated: 2026-10-17 (listing copy only; the status, version and release history below are not re-checked)*
 
 ---
 
@@ -18,36 +18,42 @@
 
 ## 2. Store Listing Copy
 
+### Title (max 75 characters)
+> Session Transfer – Copy Login to Another Chrome Profile
+
+Chosen by the owner on 2026-10-17 so the title carries the words people search for. The toolbar tooltip and the popup header still say `Session Transfer`. Keep `name` in `extension/manifest.config.ts`, `chrome-store/store.config.json` and `app-metadata.json` the same.
+
 ### Short Description (max 132 characters)
-> Move logged-in browser sessions between Chrome profiles or devices. Encrypted by default, fully local. No cloud.
+> Move your login (cookies + storage) to another Chrome profile or computer, or export as Playwright storageState. Encrypted, local.
 
 ### Detailed Description
 ```markdown
-Session Transfer moves an authenticated website session from one Chrome browser, profile, or computer to another in a couple of clicks — no re-login, no MFA loop.
+Move your login to another browser or profile: Session Transfer copies a logged-in website session (cookies, localStorage, sessionStorage, IndexedDB and Cache Storage) to another Chrome profile, Chrome browser or computer. Use it to transfer cookies between Chrome profiles, or to save a site's login as a Playwright storageState file for automated tests.
+
+No servers, no account, no analytics: the extension makes no network requests. Privacy policy: https://ravitejakamalapuram.github.io/session-transfer.html
 
 HOW IT WORKS
-1. On the source browser, open the site, click the extension and press "Transfer Session".
-2. The extension captures cookies (including HttpOnly), localStorage, sessionStorage, IndexedDB and Cache Storage, into one package that you copy or download, encrypted with a transfer code by default.
-3. On the destination browser, press "Receive Session", paste or load the package and enter the transfer code. State is restored, the page reloads, and a verification report confirms the result.
+1. In the source browser, open the site, click the extension and press "Transfer Session".
+2. The extension packs the site's cookies (including HttpOnly), localStorage, sessionStorage, IndexedDB and Cache Storage into one package that you copy or download, encrypted with a transfer code by default.
+3. In the destination browser, press "Receive Session" paste or load the package and enter the transfer code. The session is restored, the page reloads, and the popup shows a verification report of what was written.
 
-SECURITY & PRIVACY BY DESIGN
-• 100% local — no servers, no accounts, no analytics, no tracking.
+PRIVACY AND LIMITS
 • Encrypted by default with AES-256-GCM, using a key derived from a transfer code you send on another channel (PBKDF2-SHA256, 600,000 iterations). "Skip the code (same computer only)" makes a plain package instead; treat that like a password.
 • The extension refuses packages older than 5 minutes.
-• Strict origin isolation — a package can only ever be restored into its own website origin.
-• Existing destination sessions are never silently overwritten: choose Replace, Merge or Cancel.
-• Honest about limits: WebAuthn/passkeys, hardware credentials and TLS-bound state cannot be transferred by any extension, and we say so in-product instead of faking success.
+• A package restores only into the website origin it was exported from.
+• If the destination already has a session, you choose Replace, Merge or Cancel; nothing is overwritten silently.
+• Passkeys/WebAuthn, hardware-backed credentials and TLS-bound state cannot be transferred, and the popup says so. Some sites tie a session to a device and may still ask you to sign in.
 
 FOR DEVELOPERS AND QA
-• "Export for Playwright" saves the current site's cookies and localStorage as a Playwright storageState file, so automated tests can start already logged in.
-• Signing in through another site? Add its host name (up to 5) under More options and its cookies travel too.
+• "Export for Playwright" (under More options) saves the current site's cookies (except partitioned CHIPS cookies) and localStorage as a Playwright storageState .json file, so automated tests can start already logged in. sessionStorage and IndexedDB are not included, and the file holds live logins.
+• Signing in through another site? Add its host name (up to 5) under More options and its cookies are added to the package.
 
 IDEAL FOR
-• Developers moving authenticated sessions between dev/staging/prod profiles.
-• Switching computers or browsers without logging in again.
-• QA teams reproducing authenticated states quickly.
+• Moving a session between Chrome profiles for the same site.
+• Switching to a new computer or Chrome browser.
+• QA teams reproducing logged-in states.
 
-Full capability table and threat model are published in the GitHub repository.
+The full capability table and threat model are in the GitHub repository.
 ```
 
 ---
@@ -58,10 +64,10 @@ Google review requires specific plain-English justification for each declared pe
 
 | Permission | Used in Code? | Sample Evidence | Required? | Risk | Plain-English Review Justification |
 | :--- | :---: | :--- | :---: | :---: | :--- |
-| `cookies` | Yes | assets/service-worker.ts-JeVUT3mP.js:1 | Yes | HIGH | Reading and restoring cookies (including HttpOnly/Secure) is the core mechanism for transferring authenticated sessions. Cookies are only accessed for the origin the user explicitly selects. |
-| `scripting` | Yes | assets/service-worker.ts-JeVUT3mP.js:1 | Yes | MEDIUM | Used to run a one-time, user-initiated collect/restore function in the active tab to read/write that origin's localStorage, sessionStorage, IndexedDB and Cache Storage. No code runs automatically on page load. |
+| `cookies` | Yes | assets/service-worker.ts-JeVUT3mP.js:1 | Yes | HIGH | Reading and restoring cookies (including HttpOnly/Secure) is the core mechanism for transferring authenticated sessions. Cookies are accessed only for the selected origin and for up to 5 host names the user adds under More options. |
+| `scripting` | Yes | assets/service-worker.ts-JeVUT3mP.js:1 | Yes | MEDIUM | Used to run an on-demand, user-initiated collect/restore function in the active tab to read/write that origin's localStorage, sessionStorage, IndexedDB and Cache Storage. No code runs automatically on page load. |
 | `storage` | Yes | assets/service-worker.ts-JeVUT3mP.js:1 | Yes | LOW | Keeps the on-device setting and a short-lived ready result while the popup is closed. Never synced, never transmitted. |
-| `host_permissions` | Yes | http://*/* | Yes | HIGH | The product's purpose is transferring sessions for any website the user is logged into, so a fixed host list is impossible. Access is on-demand (user clicks the toolbar action), strictly limited to the selected origin, and cross-origin mixing is cryptographically prevented (origin bound as AEAD authenticated data). |
+| `host_permissions` | Yes | http://*/* | Yes | HIGH | The product's purpose is transferring sessions for any website the user is logged into, so a fixed host list is impossible. Access is on-demand (user clicks the toolbar action), page scripting is limited to the selected origin, cookie reads also cover up to 5 host names the user adds under More options, and cross-origin mixing is cryptographically prevented (origin bound as AEAD authenticated data). |
 
 ---
 
