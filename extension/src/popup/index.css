@@ -97,7 +97,8 @@ html, body {
 .btn:active { transform: translateY(1px); }
 .btn:focus-visible, .link-btn:focus-visible, .footer-link:focus-visible, .more summary:focus-visible,
 .radio:focus-within, .check-row:focus-within {
-  outline: none; box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.35);
+  /* A transparent outline still shows in forced-colors mode, where box-shadow is dropped. */
+  outline: 2px solid transparent; box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.35);
 }
 .btn:disabled { opacity: 0.45; cursor: not-allowed; }
 .btn.primary { background: var(--accent); color: #04120c; box-shadow: 0 0 0 1px rgba(16,185,129,0.4), 0 8px 24px rgba(16,185,129,0.20); }
