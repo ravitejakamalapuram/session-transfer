@@ -17,8 +17,8 @@ Session data is treated as equivalent to passwords/access tokens.
 ## Cryptographic design
 
 ```
-default (keyMode 'none'):      no encryption (payload JSON, base64)  [v1.2.x 'embedded' packages are still readable]
-code    (keyMode 'code'):      transfer code (new per export) ──PBKDF2-SHA256(600k, random salt)──▶ AES-256-GCM key
+default (keyMode 'code'):      transfer code (new per export) ──PBKDF2-SHA256(600k, random salt)──▶ AES-256-GCM key
+skip    (keyMode 'none'):      "Skip the code": no encryption (payload JSON, base64)  [v1.2.x 'embedded' packages are still readable]
 payload (JSON) ──AES-256-GCM(iv, AAD = canonical JSON of the header)──▶ ciphertext
 header = { format, version: 2, keyMode, origin, createdAt, expiresAt, transferId }
 package = header + { alg, iv, ciphertext } + { key } (embedded) or { kdf, iterations, salt } (code)

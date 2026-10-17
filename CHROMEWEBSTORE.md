@@ -19,7 +19,7 @@
 ## 2. Store Listing Copy
 
 ### Short Description (max 132 characters)
-> Move logged-in browser sessions between Chrome profiles or devices. Optional encryption, fully local. Optional extra code. No cloud.
+> Move logged-in browser sessions between Chrome profiles or devices. Encrypted by default, fully local. No cloud.
 
 ### Detailed Description
 ```markdown
@@ -79,7 +79,7 @@ Google review requires specific plain-English justification for each declared pe
   No network transmission — the extension contacts no servers
 
 - **Data Handling Summary**:
-  - **Authentication information (cookies, site storage)**: Collected: Yes, only for the site the user selects and only when the user clicks Transfer | Stored: Only inside the user-downloaded package (encrypted if the user turns that on) | Purpose: Move the user's own logged-in session to another browser/profile. Never transmitted to the developer or any third party.
+  - **Authentication information (cookies, site storage)**: Collected: Yes, only for the site the user selects and only when the user clicks Transfer | Stored: Only inside the user-downloaded package (encrypted by default; plain only if the user turns on "Skip the code") | Purpose: Move the user's own logged-in session to another browser/profile. Never transmitted to the developer or any third party.
   - **Website content**: Collected: No | Stored: No | Purpose: None — page content is not read beyond the selected origin's storage.
   - **Analytics & Telemetry**: Collected: No | Stored: No | Purpose: None collected.
 
