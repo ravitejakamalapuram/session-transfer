@@ -7,11 +7,11 @@ device to another with a near one-click experience.
 > **Export Session → Transfer → Import → Restore → Verify → Reload → you're logged in.**
 
 - **Manifest V3**, TypeScript (strict), React popup, Vite build.
-- **Plain by default, encrypted on request.** By default the package is not
-  encrypted, so treat the copied text or downloaded file like a password. The
-  setting **Encrypt with a transfer code (more secure)** encrypts it
-  (AES-256-GCM, key derived from a code you send on a second channel,
-  PBKDF2-SHA256, 600,000 iterations).
+- **Encrypted by default.** The package is encrypted with AES-256-GCM, with a
+  key derived from a transfer code you send on a second channel
+  (PBKDF2-SHA256, 600,000 iterations). The setting **Skip the code (same
+  computer only)** makes a plain package instead: anyone who sees it can use
+  the login, so treat it like a password.
 - **Fully local** — no server, no account, no telemetry. Packages are only
   accepted by the extension for 5 minutes.
 - **Honest** about what cannot be transferred (WebAuthn/passkeys, hardware credentials, TLS state).
@@ -20,9 +20,9 @@ device to another with a near one-click experience.
 
 **Source browser** → open the site → click the extension → **Transfer Session**.
 The extension collects state, serializes it (structured-clone-aware), and
-gives you one package to **copy** or **download** (a `.stpkg` file). With
-the *Encrypt with a transfer code* setting on, the package is encrypted and you also get a **transfer code** (new for each export) to send
-on a different channel. By default there is no encryption and no code: anyone with the text can restore it until it expires after 5 minutes.
+gives you one package to **copy** or **download** (a `.stpkg` file). By default
+the package is encrypted and you also get a **transfer code** (new for each export) to send
+on a different channel. With the *Skip the code* setting on there is no encryption and no code: anyone with the text can restore it until it expires after 5 minutes.
 
 **Destination browser** → click the extension → **Receive Session** → paste the package or
 load the file → **Import Session** (enter the code only if the package asks for it). State is validated, restored into the site's own
@@ -108,7 +108,7 @@ pull request and again before packaging in a release.
 ## Try it end-to-end
 
 1. Log into any site in Chrome **Profile A**.
-2. Click the extension → **Transfer Session** → **Copy** the text or **Download file**. (With *Require a separate transfer code* on, also note the code and send it on another channel.)
+2. Click the extension → **Transfer Session** → **Copy** the text or **Download file**. Also note the transfer code and send it on another channel (unless *Skip the code* is on.)
 3. Switch to **Profile B** (same or different machine) with the extension installed.
 4. Click the extension → **Receive Session** → paste the package or load the file (+ enter the code if asked) → **Import Session**.
 5. The site tab opens/reloads authenticated. A verification report confirms the counts.
@@ -122,7 +122,7 @@ pull request and again before packaging in a release.
 ## Security
 
 This handles data equivalent to passwords. Read the
-[threat model](docs/threat-model.md). In the default mode, anyone who has the copied
-text or file can restore your session, so do not share it and delete the file after
-you import it. With the separate-code setting on, never send the code over the same
-channel as the package.
+[threat model](docs/threat-model.md). Never send the transfer code over the same
+channel as the package. With *Skip the code* on, anyone who has the copied text or
+file can restore your session, so do not share it and delete the file after you
+import it.

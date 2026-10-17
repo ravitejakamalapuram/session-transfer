@@ -27,7 +27,7 @@ const payload = (origin = 'https://example.test'): SessionPayload => ({
 const rejects = (p: Promise<unknown>, re: RegExp) => assert.rejects(p, (e: Error) => re.test(e.message));
 const clone = (p: EncryptedPackage): EncryptedPackage => JSON.parse(JSON.stringify(p));
 
-describe('plain mode (default, no encryption)', () => {
+describe('plain mode (no encryption)', () => {
   it('round-trips with no code, no key and no encryption', async () => {
     const { pkg, code } = await encryptPayload(payload(), TTL, 'none', T0);
     assert.equal(code, null);
@@ -39,9 +39,11 @@ describe('plain mode (default, no encryption)', () => {
     assert.equal(out.state.localStorage[0][1], 'secret-value');
   });
 
-  it('is the default mode', async () => {
-    const { pkg } = await encryptPayload(payload(), TTL, undefined, T0);
-    assert.equal(pkg.keyMode, 'none');
+  it('is not the default: the default is code mode', async () => {
+    const { pkg, code } = await encryptPayload(payload(), TTL, undefined, T0);
+    assert.equal(pkg.keyMode, 'code');
+    assert.equal(pkg.alg, 'AES-256-GCM');
+    assert.ok(code);
   });
 
   it('refuses a payload whose origin differs from the package origin, and garbage', async () => {

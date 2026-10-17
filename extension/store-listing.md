@@ -38,12 +38,12 @@ Reviewers will install and run the extension, so do this first:
 >
 > HOW IT WORKS
 > 1. On the source browser, open the site, click the extension and press "Transfer Session".
-> 2. The extension captures cookies (including HttpOnly), localStorage, sessionStorage, IndexedDB and Cache Storage, into one package that you copy or download (optionally encrypted with a transfer code).
-> 3. On the destination browser, press "Receive Session", paste or load the package (and enter the transfer code if the package asks for one). State is restored, the page reloads, and a verification report confirms the result.
+> 2. The extension captures cookies (including HttpOnly), localStorage, sessionStorage, IndexedDB and Cache Storage, into one package that you copy or download, encrypted with a transfer code by default.
+> 3. On the destination browser, press "Receive Session", paste or load the package and enter the transfer code. State is restored, the page reloads, and a verification report confirms the result.
 >
 > SECURITY & PRIVACY BY DESIGN
 > • 100% local — no servers, no accounts, no analytics, no tracking.
-> • Not encrypted by default, so treat the copied text or file like a password. Turn on "Encrypt with a transfer code" to encrypt it with AES-256-GCM, using a key derived from a code you send on another channel (PBKDF2-SHA256, 600,000 iterations).
+> • Encrypted by default with AES-256-GCM, using a key derived from a transfer code you send on another channel (PBKDF2-SHA256, 600,000 iterations). "Skip the code (same computer only)" makes a plain package instead; treat that like a password.
 > • The extension refuses packages older than 5 minutes.
 > • Strict origin isolation — a package can only ever be restored into its own website origin.
 > • Existing destination sessions are never silently overwritten: choose Replace, Merge or Cancel.
@@ -65,7 +65,7 @@ Reviewers will install and run the extension, so do this first:
 
 **Screenshots (1280×800)** — upload in this order, from `extension/store-assets/`:
 1. `screenshot-home.png` — "Open the site. Press Transfer."
-2. `screenshot-transfer.png` — "Copy it. Lock it if you want." (plain by default, optional encryption, 5-minute limit)
+2. `screenshot-transfer.png` — "Copy it. Locked by default." (encrypted by default, "Skip the code" for a plain package, 5-minute limit)
 3. `screenshot-receive.png` — "Paste it. Check what moves."
 4. `screenshot-restored.png` — "Restored. Then checked."
 

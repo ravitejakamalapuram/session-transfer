@@ -27,12 +27,12 @@ Session Transfer moves an authenticated website session from one Chrome browser,
 
 HOW IT WORKS
 1. On the source browser, open the site, click the extension and press "Transfer Session".
-2. The extension captures cookies (including HttpOnly), localStorage, sessionStorage, IndexedDB and Cache Storage, into one package that you copy or download (optionally encrypted with a transfer code).
-3. On the destination browser, press "Receive Session", paste or load the package (and enter the transfer code if the package asks for one). State is restored, the page reloads, and a verification report confirms the result.
+2. The extension captures cookies (including HttpOnly), localStorage, sessionStorage, IndexedDB and Cache Storage, into one package that you copy or download, encrypted with a transfer code by default.
+3. On the destination browser, press "Receive Session", paste or load the package and enter the transfer code. State is restored, the page reloads, and a verification report confirms the result.
 
 SECURITY & PRIVACY BY DESIGN
 • 100% local — no servers, no accounts, no analytics, no tracking.
-• Not encrypted by default, so treat the copied text or file like a password. Turn on "Encrypt with a transfer code" to encrypt it with AES-256-GCM, using a key derived from a code you send on another channel (PBKDF2-SHA256, 600,000 iterations).
+• Encrypted by default with AES-256-GCM, using a key derived from a transfer code you send on another channel (PBKDF2-SHA256, 600,000 iterations). "Skip the code (same computer only)" makes a plain package instead; treat that like a password.
 • The extension refuses packages older than 5 minutes.
 • Strict origin isolation — a package can only ever be restored into its own website origin.
 • Existing destination sessions are never silently overwritten: choose Replace, Merge or Cancel.
@@ -72,7 +72,7 @@ Google review requires specific plain-English justification for each declared pe
   ⬇
   Popup UI ↔ background service worker (on-demand, user-initiated injection into the selected tab only)
   ⬇
-  Cookies + origin storage for the selected site are packaged locally (optionally encrypted: AES-256-GCM, PBKDF2-SHA256)
+  Cookies + origin storage for the selected site are packaged locally (encrypted by default: AES-256-GCM, PBKDF2-SHA256)
   ⬇
   `.stpkg` file saved by the user
   ⬇
