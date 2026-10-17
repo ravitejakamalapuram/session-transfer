@@ -9,9 +9,9 @@ review, typically 1–3 days for a new extension with host permissions).
 
 Reviewers will install and run the extension, so do this first:
 
-1. Unzip `session-transfer-v1.2.0.zip` → `chrome://extensions` → Developer mode → **Load unpacked**.
-2. Log into any site (e.g. GitHub) in the tab → click extension → **Transfer Session** → download package + note code.
-3. Open a second Chrome profile with the extension → **Receive Session** → load package + code → **Import Session** → confirm you're logged in and the verification report passes.
+1. Build the zip with `cd extension && npm run zip` (it writes `session-transfer-v<version>.zip`, named from `extension/package.json`), unzip it → `chrome://extensions` → Developer mode → **Load unpacked**.
+2. Log into any site (e.g. GitHub) in the tab → click extension → **Transfer Session** → download the package (and note the transfer code if you turned on "Encrypt with a transfer code").
+3. Open a second Chrome profile with the extension → **Receive Session** → load the package (+ code, if one was shown) → **Import Session** → confirm you're logged in and the verification report passes.
 
 ---
 
@@ -23,42 +23,43 @@ Reviewers will install and run the extension, so do this first:
 
 ## STEP 2 — Create the item & upload
 
-1. Developer Dashboard → **New Item** → upload **`session-transfer-v1.2.0.zip`** (built, in `extension/` root).
-2. Version shows 1.2.0 automatically from the manifest.
+1. Developer Dashboard → **New Item** → upload the zip that `npm run zip` writes to the `extension/` root (`session-transfer-v<version>.zip`).
+2. The version shows automatically from the manifest (taken from `extension/package.json`).
 
 ## STEP 3 — Store listing tab (copy-paste ready)
 
-**Name:** Session Transfer
+**Name:** Session Transfer – Copy Login to Another Chrome Profile
 
 **Summary (short description, ≤132 chars):**
-> Move logged-in browser sessions between Chrome profiles or devices. Optional encryption, fully local. Optional extra code. No cloud.
+> Move your login (cookies + storage) to another Chrome profile or computer, or export it as Playwright storageState. Local only.
 
 **Description (detailed):**
-> Session Transfer moves an authenticated website session from one Chrome browser, profile, or computer to another in a couple of clicks — no re-login, no MFA loop.
+> Move your login to another browser or profile: Session Transfer copies a logged-in website session (cookies, localStorage, sessionStorage, IndexedDB and Cache Storage) to another Chrome profile, Chrome browser or computer. Use it to transfer cookies between Chrome profiles, or to save a site's login as a Playwright storageState file for automated tests.
+>
+> No servers, no account, no analytics: the extension makes no network requests. Privacy policy: https://ravitejakamalapuram.github.io/session-transfer.html
 >
 > HOW IT WORKS
-> 1. On the source browser, open the site, click the extension and press "Transfer Session".
-> 2. The extension captures cookies (including HttpOnly), localStorage, sessionStorage, IndexedDB and Cache Storage, into one package that you copy or download (optionally encrypted with a transfer code).
-> 3. On the destination browser, press "Receive Session", paste or load the package (and enter the transfer code if the package asks for one). State is restored, the page reloads, and a verification report confirms the result.
+> 1. In the source browser, open the site, click the extension and press "Transfer Session".
+> 2. The extension packs the site's cookies (including HttpOnly), localStorage, sessionStorage, IndexedDB and Cache Storage into one package that you copy or download.
+> 3. In the destination browser, press "Receive Session" and paste or load the package (and enter the transfer code if the package asks for one). The session is restored, the page reloads, and the popup shows a verification report of what was written.
 >
-> SECURITY & PRIVACY BY DESIGN
-> • 100% local — no servers, no accounts, no analytics, no tracking.
-> • Not encrypted by default, so treat the copied text or file like a password. Turn on "Encrypt with a transfer code" to encrypt it with AES-256-GCM, using a key derived from a code you send on another channel (PBKDF2-SHA256, 600,000 iterations).
+> PRIVACY AND LIMITS
+> • Not encrypted by default: anyone with the copied text or file can restore the session, so treat it like a password. Turn on "Encrypt with a transfer code" to encrypt it with AES-256-GCM, using a key derived from a code you send on another channel (PBKDF2-SHA256, 600,000 iterations).
 > • The extension refuses packages older than 5 minutes.
-> • Strict origin isolation — a package can only ever be restored into its own website origin.
-> • Existing destination sessions are never silently overwritten: choose Replace, Merge or Cancel.
-> • Honest about limits: WebAuthn/passkeys, hardware credentials and TLS-bound state cannot be transferred by any extension, and we say so in-product instead of faking success.
+> • A package restores only into the website origin it was exported from.
+> • If the destination already has a session, you choose Replace, Merge or Cancel; nothing is overwritten silently.
+> • Passkeys/WebAuthn, hardware-backed credentials and TLS-bound state cannot be transferred, and the popup says so. Some sites tie a session to a device and may still ask you to sign in.
 >
 > FOR DEVELOPERS AND QA
-> • "Export for Playwright" saves the current site's cookies and localStorage as a Playwright storageState file, so automated tests can start already logged in.
-> • Signing in through another site? Add its host name (up to 5) under More options and its cookies travel too.
+> • "Export for Playwright" (under More options) saves the current site's cookies (except partitioned CHIPS cookies) and localStorage as a Playwright storageState .json file, so automated tests can start already logged in. sessionStorage and IndexedDB are not included, and the file holds live logins.
+> • Signing in through another site? Add its host name (up to 5) under More options and its cookies are added to the package.
 >
 > IDEAL FOR
-> • Developers moving authenticated sessions between dev/staging/prod profiles.
-> • Switching computers or browsers without logging in again.
-> • QA teams reproducing authenticated states quickly.
+> • Moving a session between Chrome profiles for the same site.
+> • Switching to a new computer or Chrome browser.
+> • QA teams reproducing logged-in states.
 >
-> Full capability table and threat model are published in the GitHub repository.
+> The full capability table and threat model are in the GitHub repository.
 
 **Category:** Productivity
 **Language:** English
@@ -83,13 +84,13 @@ The four screenshots are made from the real popup: `cd extension && npm run buil
 ## STEP 4 — Privacy practices tab (important — answer exactly like this)
 
 **Single purpose description:**
-> Session Transfer securely exports and imports a website's authenticated browser state (cookies and origin storage) between Chrome browsers/profiles/devices, with optional client-side encryption.
+> Session Transfer exports and imports the session state of a user-selected website (cookies and origin storage) so the user can continue a logged-in session in another Chrome profile or device. Encryption with a transfer code is optional and off by default.
 
 **Permission justifications:**
-- **cookies** — "Reading and restoring cookies (including HttpOnly/Secure) is the core mechanism for transferring authenticated sessions. Cookies are only accessed for the origin the user explicitly selects."
-- **scripting** — "Used to run a one-time, user-initiated collect/restore function in the active tab to read/write that origin's localStorage, sessionStorage, IndexedDB and Cache Storage. No code runs automatically on page load."
+- **cookies** — "Reading and restoring cookies (including HttpOnly/Secure) is the core mechanism for transferring authenticated sessions. Cookies are accessed only for the selected origin and for up to 5 host names the user adds under More options."
+- **scripting** — "Used to run an on-demand, user-initiated collect/restore function in the active tab to read/write that origin's localStorage, sessionStorage, IndexedDB and Cache Storage. No code runs automatically on page load."
 - **storage** — "Keeps the on-device setting and a short-lived ready result while the popup is closed. Never synced, never transmitted."
-- **host_permissions (http/https)** — "The product's purpose is transferring sessions for any website the user is logged into, so a fixed host list is impossible. Access is on-demand (user clicks the toolbar action), strictly limited to the selected origin, and cross-origin mixing is cryptographically prevented (origin bound as AEAD authenticated data)."
+- **host_permissions (http/https)** — "The product's purpose is transferring sessions for any website the user is logged into, so a fixed host list is impossible. Access is on-demand (user clicks the toolbar action), page scripting is limited to the selected origin, cookie reads also cover up to 5 host names the user adds under More options, and cross-origin mixing is cryptographically prevented (origin bound as AEAD authenticated data)."
 
 **Remote code:** "No — this extension does not use remote code."
 
@@ -108,14 +109,14 @@ The four screenshots are made from the real popup: `cd extension && npm run buil
 
 - **Unlisted visibility** publishes instantly after review without appearing in search — good for a soft launch; flip to Public later.
 - Review for extensions with broad host permissions takes 1–3 days (occasionally up to a week). Everything in Step 4 above is written to preempt the usual rejection reasons.
-- Keep the zip you submitted; for updates, bump `version` in `extension/package.json`, run `yarn zip`, and upload the new zip — existing users auto-update.
+- Keep the zip you submitted; for updates, bump `version` in `extension/package.json`, run `npm run zip`, and upload the new zip — existing users auto-update.
 - If rejected, the dashboard states the exact policy section; the most common fix for this type of extension is expanding the host-permission justification (already drafted above).
 
 ## Files you'll need (all in this repo)
 
 | Store field | File |
 |---|---|
-| Extension package | `session-transfer-v1.2.0.zip` |
+| Extension package | `session-transfer-v<version>.zip` (from `npm run zip`) |
 | Screenshots ×4 | `store-assets/screenshot-{home,transfer,receive,restored}.png` |
 | Small promo tile | `store-assets/tile-small-440x280.png` |
 | Marquee tile | `store-assets/tile-marquee-1400x560.png` |
