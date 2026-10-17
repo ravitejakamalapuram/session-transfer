@@ -29,15 +29,15 @@ without a reason from users).
 | `--border-strong` | emerald 50% | selected/focused borders | |
 | `--text` | `#f3f4f6` | primary text | 16.6 : 1 |
 | `--text-2` | `#9ca3af` | secondary text, values | 7.2 : 1 |
-| `--text-3` | `#8b93a1` | hints, captions, footer | 5.9 : 1 |
+| `--text-3` | `#8b93a1` (set by #31; `#6b7280` until it merges) | hints, captions, footer | 5.9 : 1 (3.8 : 1 before #31) |
 | `--accent` | `#10b981` | primary button, success | 7.2 : 1 |
 | `--accent-2` | `#34d399` | hover, success text | 9.5 : 1 |
 | `--cyan` | `#22d3ee` | running / info | |
 | `--amber` | `#fbbf24` | partial / warning | 10.9 : 1 |
 | `--rose` | `#f43f5e` | failure / danger | 5.0 : 1 |
 
-Rule: body text needs 4.5 : 1 against the surface it sits on. `--text-3` was `#6b7280` (3.8 : 1, failed AA at 10 px)
-and was lightened; do not go darker.
+Rule: body text needs 4.5 : 1 against the surface it sits on. `--text-3` is `#6b7280` on `main` (3.8 : 1, fails AA
+at 10 px); PR #31 lightens it to `#8b93a1`. Do not go darker.
 
 Status colours always pair with a glyph (✓ ⚠ ✗ — ○) so colour is never the only signal.
 
@@ -99,5 +99,5 @@ Minimum text size is **11 px**. Do not add new `style={{ fontSize: 10 }}` overri
 
 ## UX audit: open items
 
-Tracked in [`docs/PLAN.md`](../PLAN.md). Fixed in the PR that adds this file: `--text-3` contrast and a focus ring on
-buttons, links and summaries.
+Tracked in [`docs/PLAN.md`](../PLAN.md). `--text-3` contrast, a focus ring on buttons, links and summaries, and the 11 px
+minimum are fixed in PR #31.
