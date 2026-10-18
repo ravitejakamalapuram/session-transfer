@@ -51,7 +51,7 @@ Reviewers will install and run the extension, so do this first:
 > • Passkeys/WebAuthn, hardware-backed credentials and TLS-bound state cannot be transferred, and the popup says so. Some sites tie a session to a device and may still ask you to sign in.
 >
 > FOR DEVELOPERS AND QA
-> • "Export for Playwright" (under More options) saves the current site's cookies (except partitioned CHIPS cookies) and localStorage as a plain (unencrypted) Playwright storageState .json file, so automated tests can start already logged in. sessionStorage and IndexedDB are not included, and the file holds live logins.
+> • "Export for Playwright" (under More options) saves the current site's cookies, plus cookies from any extra sign-in sites you list under More options (except partitioned CHIPS cookies), and the current site's localStorage as a plain (unencrypted) Playwright storageState .json file, so automated tests can start already logged in. sessionStorage and IndexedDB are not included, and the file holds live logins.
 > • Signing in through another site? Add its host name (up to 5) under More options and its cookies are added to the package.
 >
 > IDEAL FOR
