@@ -7,12 +7,19 @@ const ASKED_KEY = 'reviewAsk.asked';
 type LocalArea = Pick<chrome.storage.StorageArea, 'get' | 'set'>;
 const local = (): LocalArea => chrome.storage.local;
 
+type Lock = <T>(fn: () => Promise<T>) => Promise<T>;
+// A Web Lock spans every page of the extension, so two restore screens cannot both claim it.
+const webLock: Lock = <T,>(fn: () => Promise<T>) =>
+  navigator.locks ? (navigator.locks.request(ASKED_KEY, fn) as Promise<T>) : fn();
+
 /** True the first time only: marks the ask as used before answering, so it never shows twice. */
-export async function claimReviewAsk(area: LocalArea = local()): Promise<boolean> {
+export async function claimReviewAsk(area: LocalArea = local(), lock: Lock = webLock): Promise<boolean> {
   try {
-    if ((await area.get(ASKED_KEY))[ASKED_KEY] === true) return false;
-    await area.set({ [ASKED_KEY]: true });
-    return true;
+    return await lock(async () => {
+      if ((await area.get(ASKED_KEY))[ASKED_KEY] === true) return false;
+      await area.set({ [ASKED_KEY]: true });
+      return true;
+    });
   } catch {
     return false;
   }
