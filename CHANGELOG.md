@@ -15,6 +15,8 @@ tag (release-platform stamps it into the built manifest), so the numbers below m
 - Receive keeps the pasted package and code after an error such as a wrong code, says plainly when the pasted text
   is not a package, and accepts a package up to one minute past expiry to allow for clock differences.
 - Popup hints are easier to read (lighter muted text, nothing below 11px) and keyboard focus now shows a visible ring.
+- Keyboard and screen readers: the package file button opens with Enter or Space, the package and code fields have labels, and
+  progress, results and errors are announced.
 
 ### Changed
 - **Packages are encrypted by default.** Transfer now makes an AES-256-GCM package and a transfer code (new for each
