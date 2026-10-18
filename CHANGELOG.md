@@ -21,6 +21,10 @@ tag (release-platform stamps it into the built manifest), so the numbers below m
 - Keyboard and screen readers: the package file button opens with Enter or Space, the package and code fields have labels, and
   progress, results and errors are announced.
 
+### Added
+- A local welcome page opens once after the first install (not on updates) with the three transfer steps, how to pin
+  the icon and the 5-minute package window.
+
 ### Changed
 - **Packages are encrypted by default.** Transfer now makes an AES-256-GCM package and a transfer code (new for each
   export) unless the new setting "Skip the code (same computer only)" is on; that makes a plain package, which anyone

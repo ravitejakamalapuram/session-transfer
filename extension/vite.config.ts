@@ -8,6 +8,8 @@ export default defineConfig({
   build: {
     target: 'es2022',
     sourcemap: false,
+    // Pages the manifest does not name (the first-install welcome page) must be listed here to be bundled.
+    rollupOptions: { input: { welcome: 'welcome.html' } },
   },
   server: {
     cors: { origin: [/chrome-extension:\/\//] },
