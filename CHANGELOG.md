@@ -6,6 +6,8 @@ tag (release-platform stamps it into the built manifest), so the numbers below m
 ## [Unreleased]
 
 ### Fixed
+- The Ready screen no longer shows a green check when some data could not be read or nothing was found; it shows a
+  warning naming what is missing.
 - Replace no longer removes cookies of an unrelated subdomain, and now removes leftover partitioned cookies from their
   own partition.
 - The popup header said "AES-256-GCM · local only" even for the default plain package. It now reads "Move a logged-in

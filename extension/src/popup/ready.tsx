@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Button, ComponentRow, hostOf } from './components/ui';
+import { Button, COMPONENT_LABEL, ComponentRow, hostOf } from './components/ui';
 import { EncryptedPackage, TransferComponentResult } from '../core/types';
 
 export interface Collected {
@@ -58,6 +58,23 @@ export function clearReadyResult(area: SessionArea = session()): Promise<void> {
 /** Done leaves without a warning only once the package is saved: the code alone is useless. */
 export function needsDoneGuard(saved: Saved): boolean {
   return !saved.package;
+}
+
+/**
+ * What the Ready screen should warn about, in plain words, or null when collection really
+ * succeeded. Failed or partial areas are named; if nothing failed but nothing was found, say so.
+ */
+export function collectionWarning(results: TransferComponentResult[]): string | null {
+  const names = (status: string) =>
+    results.filter((r) => r.status === status).map((r) => COMPONENT_LABEL[r.component]).join(', ');
+  const failed = names('failed');
+  const partial = names('partial');
+  if (failed || partial) {
+    const parts = [failed && `Couldn't read ${failed}.`, partial && `Only part of ${partial} was copied.`];
+    return `${parts.filter(Boolean).join(' ')} The session may not work fully on the other browser.`;
+  }
+  if (results.every((r) => !r.itemCount)) return 'Nothing was found to transfer. Check that you are signed in on this tab.';
+  return null;
 }
 
 /** Local wall-clock time the transfer expires, e.g. "14:35". */
@@ -123,14 +140,21 @@ export function Ready({
 
   const embedded = collected.code == null;
   const doneLabel = saved.copied ? 'Done (clears clipboard)' : 'Done';
+  const warning = collectionWarning(collected.results);
 
   return (
     <div className="gap fade-in">
       <div className="center">
-        <div className="big-check">✓</div>
+        <div className={`big-check ${warning ? 'warn' : ''}`} data-testid="ready-icon">{warning ? '!' : '✓'}</div>
         <div className="section-title">{embedded ? 'Session ready' : 'Ready to transfer'}</div>
         <div className="hint">{hostOf(collected.pkg.origin)} · {formatBytes(collected.sizeBytes)}</div>
       </div>
+
+      {warning && (
+        <div className="callout warn" data-testid="collect-warning">
+          {warning}
+        </div>
+      )}
 
       {embedded ? (
         <>
