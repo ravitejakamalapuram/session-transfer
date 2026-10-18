@@ -1,0 +1,5 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+# CodeRabbit approves the PR once its review comments are resolved, so "CodeRabbit approved" is a real merge gate.
+reviews:
+  profile: chill
+  request_changes_workflow: true

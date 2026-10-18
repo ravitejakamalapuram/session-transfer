@@ -22,21 +22,21 @@ facts:
     note: "Moves the web session only. It is a user-saved file; the user carries it to the other browser."
 
   encryption:
-    claim: "Packages are NOT encrypted by default. With the 'Encrypt with a transfer code' setting ON: AES-256-GCM (random 12-byte IV), key derived from the code with PBKDF2-SHA256, 600,000 iterations, random 16-byte salt."
+    claim: "Packages are encrypted by default: AES-256-GCM (random 12-byte IV), key derived from the transfer code with PBKDF2-SHA256, 600,000 iterations, random 16-byte salt. With 'Skip the code (same computer only)' ON the package is plain."
     status: safe
     sources: ["README.md:9-13", "PRIVACY.md:21-29", "CHROMEWEBSTORE.md (HOW IT WORKS 2, SECURITY bullet 2)"]
     code: ["extension/src/core/crypto.ts (encryptPayload: none vs code branch; PBKDF2_ITERATIONS = 600_000)", "extension/src/core/crypto.ts (Web Crypto only, no custom crypto)"]
-    note: "Default mode has no encryption and no tamper detection: whoever holds the text has the session. Never say 'encrypted' or 'AES' about the default mode. v1.2.x 'embedded' packages are still readable by the receiver."
+    note: "Skip-the-code mode has no encryption and no tamper detection: whoever holds the text has the session. Never say 'always encrypted'; the user can turn it off. v1.2.x 'embedded' packages are still readable by the receiver."
 
   key_mode_default:
-    claim: "Default (setting OFF): the package is plain (not encrypted), so one step moves the session. The Ready screen warns that anyone with the text can restore the session until the shown time. Setting 'Encrypt with a transfer code (more secure)' ON gives the two-channel flow: encrypted package + a separate code."
+    claim: "Default: the two-channel flow, an encrypted package plus a separate code. 'Skip the code (same computer only)' ON (remembered on the device) gives a plain package, so one step moves the session; the Ready screen warns that anyone with the text can restore the session until the shown time."
     status: narrow
     sources: ["CHANGELOG.md [Unreleased]", "extension/docs/threat-model.md #1, #2, #8"]
     code: ["extension/src/popup/App.tsx (SETTING_KEY 'settings.requireTransferCode', loadRequireCode, require-code-checkbox, collect sends requireCode)", "extension/src/background/service-worker.ts (handleCollect: requireCode ? 'code' : 'none')", "extension/src/popup/ready.tsx (embedded-warning vs two-step screen)"]
-    note: "Setting is per browser profile (chrome.storage.local), absent = OFF. In the default mode a leaked copy of the text IS the session: do not say 'a leaked package is useless without the code' for it. Both browsers need the new version: an older receiver cannot read a default-mode (plain) package."
+    note: "'Skip the code' is per browser profile (chrome.storage.local key settings.skipTransferCode), absent = encrypted. With it ON a leaked copy of the text IS the session: do not say 'a leaked package is useless without the code' for that mode."
 
   transfer_code:
-    claim: "Optional (default OFF). When ON, each export makes a new random code (12 characters from a 31-letter/digit set, shown as ABCD-EFGH-JKMN) and the package cannot be decrypted without it. When OFF there is no code."
+    claim: "On by default; off only with 'Skip the code'. Each export makes a new random code (12 characters from a 31-letter/digit set, shown as ABCD-EFGH-JKMN) and the package cannot be decrypted without it. With 'Skip the code' ON there is no code."
     status: narrow
     sources: ["README.md:9-13", "CHROMEWEBSTORE.md (HOW IT WORKS 3)"]
     code: ["extension/src/core/crypto.ts (generateTransferCode; code mode in encryptPayload/decryptPayload)", "extension/src/background/service-worker.ts (handleInspect: codeRequired reply)"]
@@ -48,7 +48,7 @@ facts:
     sources: ["CHROMEWEBSTORE.md (SECURITY bullet 3)", "PRIVACY.md:21-29", "extension/docs/threat-model.md #8"]
     code: ["extension/src/background/service-worker.ts (TRANSFER_TTL_MS = 5 * 60 * 1000; passed to encryptPayload)", "extension/src/core/crypto.ts (checkPackage: expiry then lifetime; MAX_PACKAGE_LIFETIME_MS)", "extension/src/popup/ready.tsx + App.tsx (UI shows 'Expires in ...' / 'expires in ...')"]
     verdict: "CONFIRMED in code."
-    note: "The expiry is an extension-side check in BOTH modes. In the default mode the key is inside the package, so after expiry anyone with the text can still decrypt it with a short script and the cookies work until the site ends the session. In code mode, someone with package + code can do the same. Say 'the extension refuses packages older than 5 minutes'; do NOT say 'cryptographically expires', 'self-destructs' or 'cannot be used after 5 minutes'."
+    note: "The expiry is an extension-side check in BOTH modes. In skip-the-code mode the package is plain, so after expiry anyone with the text can still read it with a short script and the cookies work until the site ends the session. In code mode, someone with package + code can do the same. Say 'the extension refuses packages older than 5 minutes'; do NOT say 'cryptographically expires', 'self-destructs' or 'cannot be used after 5 minutes'."
 
   origin_binding:
     claim: "A package restores only into the website origin it was exported from. The origin (with expiry and key mode) is bound as AES-GCM authenticated data, and it is re-checked after decrypt."
@@ -138,11 +138,11 @@ do_not_claim:
   - claim: "Works only once / self-destructing code / single-use package"
     why: "Not enforced; see transfer_code."
   - claim: "A leaked package is useless without the code / two-channel security (as a general statement)"
-    why: "True only with 'Require a separate transfer code' ON. By default the key is inside the package; see key_mode_default."
+    why: "Not true with 'Skip the code' ON, where the package is plain; see key_mode_default."
   - claim: "The package self-destructs / cannot be used after 5 minutes / expires cryptographically"
-    why: "The 5-minute limit is a check in the extension. In the default mode the key is inside the package, so a holder can still decrypt it later; see package_expiry."
+    why: "The 5-minute limit is a check in the extension. A plain (skip-the-code) package can still be read later, and package + code can still be decrypted; see package_expiry."
   - claim: "One-time transfer code / the code is always required"
-    why: "The code is optional and off by default; see transfer_code."
+    why: "The user can skip the code; see transfer_code."
   - claim: "Never leaves your device / zero-knowledge / unhackable / military-grade"
     why: "The user exports a file and carries it; the policy only says the extension contacts no servers."
   - claim: "Works on every site / keeps you logged in everywhere"
@@ -151,8 +151,8 @@ do_not_claim:
     why: "No source."
   - claim: "Works in Firefox, Safari or Edge"
     why: "Chrome extension, Manifest V3. Other browsers are not tested in this repo."
-  - claim: "Packages are always encrypted / AES-256 by default"
-    why: "Default packages are plain; encryption is the opt-in 'Encrypt with a transfer code' setting."
+  - claim: "Packages are always encrypted"
+    why: "Encrypted by default, but 'Skip the code (same computer only)' makes plain packages."
   - claim: "The extension backs up the destination session"
     why: "Backups were removed in 1.3.0."
 

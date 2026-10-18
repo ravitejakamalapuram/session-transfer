@@ -2,7 +2,7 @@
 # they depend on infrastructure (appforge-control, appforge-edge, Paperclip) not built yet.
 product_id: session-transfer
 name: Session Transfer
-description: "Move your login (cookies + storage) to another Chrome profile or computer, or export it as Playwright storageState. Local only."
+description: "Move your login (cookies + storage) to another Chrome profile or computer, encrypted. Or export a plain Playwright storageState."
 platform: [chrome]
 state: PRODUCTION
 portfolio_state: MAINTENANCE
