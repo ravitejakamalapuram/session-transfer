@@ -10,8 +10,8 @@ review, typically 1–3 days for a new extension with host permissions).
 Reviewers will install and run the extension, so do this first:
 
 1. Build the zip with `cd extension && npm run zip` (it writes `session-transfer-v<version>.zip`, named from `extension/package.json`), unzip it → `chrome://extensions` → Developer mode → **Load unpacked**.
-2. Log into any site (e.g. GitHub) in the tab → click extension → **Transfer Session** → download the package (and note the transfer code if you turned on "Encrypt with a transfer code").
-3. Open a second Chrome profile with the extension → **Receive Session** → load the package (+ code, if one was shown) → **Import Session** → confirm you're logged in and the verification report passes.
+2. Log into any site (e.g. GitHub) in the tab → click extension → leave **Skip the code** unchecked → **Transfer Session** → download the package and note the transfer code.
+3. Open a second Chrome profile with the extension → **Receive Session** → load the package + code → **Import Session** → confirm you're logged in and the verification report passes.
 
 ---
 
@@ -31,7 +31,7 @@ Reviewers will install and run the extension, so do this first:
 **Name:** Session Transfer – Copy Login to Another Chrome Profile
 
 **Summary (short description, ≤132 chars):**
-> Move your login (cookies + storage) to another Chrome profile or computer, or export it as Playwright storageState. Local only.
+> Move your login (cookies + storage) to another Chrome profile or computer, encrypted. Or export a plain Playwright storageState.
 
 **Description (detailed):**
 > Move your login to another browser or profile: Session Transfer copies a logged-in website session (cookies, localStorage, sessionStorage, IndexedDB and Cache Storage) to another Chrome profile, Chrome browser or computer. Use it to transfer cookies between Chrome profiles, or to save a site's login as a Playwright storageState file for automated tests.
@@ -40,18 +40,18 @@ Reviewers will install and run the extension, so do this first:
 >
 > HOW IT WORKS
 > 1. In the source browser, open the site, click the extension and press "Transfer Session".
-> 2. The extension packs the site's cookies (including HttpOnly), localStorage, sessionStorage, IndexedDB and Cache Storage into one package that you copy or download.
-> 3. In the destination browser, press "Receive Session" and paste or load the package (and enter the transfer code if the package asks for one). The session is restored, the page reloads, and the popup shows a verification report of what was written.
+> 2. The extension packs the site's cookies (including HttpOnly), localStorage, sessionStorage, IndexedDB and Cache Storage into one package that you copy or download, encrypted with a transfer code by default.
+> 3. In the destination browser, press "Receive Session" paste or load the package and enter the transfer code if it asks for one. The session is restored, the page reloads, and the popup shows a verification report of what was written.
 >
 > PRIVACY AND LIMITS
-> • Not encrypted by default: anyone with the copied text or file can restore the session, so treat it like a password. Turn on "Encrypt with a transfer code" to encrypt it with AES-256-GCM, using a key derived from a code you send on another channel (PBKDF2-SHA256, 600,000 iterations).
+> • Encrypted by default with AES-256-GCM, using a key derived from a transfer code you send on another channel (PBKDF2-SHA256, 600,000 iterations). "Skip the code (same computer only)" makes a plain package instead; treat that like a password.
 > • The extension refuses packages older than 5 minutes.
 > • A package restores only into the website origin it was exported from.
 > • If the destination already has a session, you choose Replace, Merge or Cancel; nothing is overwritten silently.
 > • Passkeys/WebAuthn, hardware-backed credentials and TLS-bound state cannot be transferred, and the popup says so. Some sites tie a session to a device and may still ask you to sign in.
 >
 > FOR DEVELOPERS AND QA
-> • "Export for Playwright" (under More options) saves the current site's cookies (except partitioned CHIPS cookies) and localStorage as a Playwright storageState .json file, so automated tests can start already logged in. sessionStorage and IndexedDB are not included, and the file holds live logins.
+> • "Export for Playwright" (under More options) saves the current site's cookies, plus cookies from any extra sign-in sites you list under More options (except partitioned CHIPS cookies), and the current site's localStorage as a plain (unencrypted) Playwright storageState .json file, so automated tests can start already logged in. sessionStorage and IndexedDB are not included, and the file holds live logins.
 > • Signing in through another site? Add its host name (up to 5) under More options and its cookies are added to the package.
 >
 > IDEAL FOR
@@ -66,7 +66,7 @@ Reviewers will install and run the extension, so do this first:
 
 **Screenshots (1280×800)** — upload in this order, from `extension/store-assets/`:
 1. `screenshot-home.png` — "Open the site. Press Transfer."
-2. `screenshot-transfer.png` — "Copy it. Lock it if you want." (plain by default, optional encryption, 5-minute limit)
+2. `screenshot-transfer.png` — "Copy it. Locked by default." (encrypted by default, "Skip the code" for a plain package, 5-minute limit)
 3. `screenshot-receive.png` — "Paste it. Check what moves."
 4. `screenshot-restored.png` — "Restored. Then checked."
 
@@ -84,7 +84,7 @@ The four screenshots are made from the real popup: `cd extension && npm run buil
 ## STEP 4 — Privacy practices tab (important — answer exactly like this)
 
 **Single purpose description:**
-> Session Transfer exports and imports the session state of a user-selected website (cookies and origin storage) so the user can continue a logged-in session in another Chrome profile or device. Encryption with a transfer code is optional and off by default.
+> Session Transfer exports and imports the session state of a user-selected website (cookies and origin storage) so the user can continue a logged-in session in another Chrome profile or device. Packages are encrypted with a transfer code by default.
 
 **Permission justifications:**
 - **cookies** — "Reading and restoring cookies (including HttpOnly/Secure) is the core mechanism for transferring authenticated sessions. Cookies are accessed only for the selected origin and for up to 5 host names the user adds under More options."

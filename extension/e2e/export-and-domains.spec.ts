@@ -16,7 +16,9 @@ async function mark(site: Page, value: string) {
 async function openMore(popup: Page) {
   await popup.getByTestId('more-options').locator('summary').click();
 }
+/** Exports a plain package ("Skip the code"), so the tests can read the payload. */
 async function exportAndCopy(popup: Page): Promise<string> {
+  await popup.getByTestId('skip-code-checkbox').check();
   await popup.getByTestId('transfer-session-button').click();
   await expect(popup.getByTestId('transfer-done-button')).toBeVisible({ timeout: 30_000 });
   await popup.getByTestId('copy-package-button').click();

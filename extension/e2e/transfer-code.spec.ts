@@ -1,8 +1,8 @@
-// Optional transfer code (APP-315 Problem 2 / APP-317 plan §6). Two separate browser profiles:
+// Transfer code, on by default with a "Skip the code" opt-out (APP-315 Problem 2 / APP-317 plan §6). Two separate browser profiles:
 // `h` sends, `b` receives. The fixture site is the same origin for both.
 import { test, expect, Page } from './fixtures';
 
-const SETTING = 'settings.requireTransferCode';
+const SETTING = 'settings.skipTransferCode';
 const READY = 'transfer-done-button'; // present on both Ready screens
 const FAST = 'ls=3&ss=3&idb=5&cache=2';
 const MARKER = () => `marker-${Math.random().toString(36).slice(2)}`;
@@ -24,6 +24,14 @@ async function exportSession(popup: Page) {
 }
 const clipboard = (popup: Page) => popup.evaluate(() => navigator.clipboard.readText());
 
+/** Turns on "Skip the code" (plain package) and reopens the popup. */
+async function skipCode(a: { site: Page; popup: Page }) {
+  await a.popup.getByTestId('skip-code-checkbox').check();
+  await a.site.bringToFront();
+  await a.popup.reload();
+  await expect(a.popup.getByTestId('skip-code-checkbox')).toBeChecked();
+}
+
 /** Receiver: Receive Session -> paste -> Continue. */
 async function pasteAndContinue(popup: Page, text: string) {
   await popup.getByTestId('receive-session-button').click();
@@ -43,19 +51,30 @@ async function importIt(popup: Page) {
   await expect(done).toBeVisible({ timeout: 30_000 });
 }
 
-test('1. setting is OFF by default; export is one step with the warning and no code', async ({ h }) => {
-  const { popup } = await h.openPopup(FAST);
-  await expect(popup.getByTestId('require-code-checkbox')).not.toBeChecked();
-  expect(await popup.evaluate((k) => chrome.storage.local.get(k), SETTING)).toEqual({});
-  await exportSession(popup);
-  await expect(popup.getByTestId('embedded-warning')).toContainText(/Anyone with this text can restore your session until \d\d?:\d\d/);
-  await expect(popup.getByTestId('transfer-code')).toHaveCount(0);
-  await expect(popup.getByTestId('copy-package-button')).toBeVisible();
-  await expect(popup.getByTestId('download-package-button')).toBeVisible();
+test('1. encrypted with a code by default; "Skip the code" gives a plain package; the choice persists', async ({ h }) => {
+  const a = await h.openPopup(FAST);
+  await expect(a.popup.getByTestId('skip-code-toggle')).toContainText('Skip the code (same computer only)');
+  await expect(a.popup.getByTestId('skip-code-checkbox')).not.toBeChecked();
+  expect(await a.popup.evaluate((k) => chrome.storage.local.get(k), SETTING)).toEqual({});
+  await exportSession(a.popup);
+  await expect(a.popup.getByTestId('transfer-code')).toHaveText(/^[A-Z2-9]{4}-[A-Z2-9]{4}-[A-Z2-9]{4}$/);
+  await a.popup.getByTestId('copy-package-button').click();
+  expect(JSON.parse(await clipboard(a.popup))).toMatchObject({ version: 2, keyMode: 'code', alg: 'AES-256-GCM' });
+  await a.popup.getByTestId('transfer-done-button').click();
+
+  await skipCode(a); // survives reopening
+  expect(await a.popup.evaluate((k) => chrome.storage.local.get(k), SETTING)).toEqual({ [SETTING]: true });
+  await exportSession(a.popup);
+  await expect(a.popup.getByTestId('embedded-warning')).toContainText(/Anyone with this text can restore your session until \d\d?:\d\d/);
+  await expect(a.popup.getByTestId('transfer-code')).toHaveCount(0);
+  await expect(a.popup.getByTestId('download-package-button')).toBeVisible();
+  await a.popup.getByTestId('copy-package-button').click();
+  expect(JSON.parse(await clipboard(a.popup))).toMatchObject({ version: 2, keyMode: 'none', alg: 'none' });
 });
 
-test('2. code OFF: copy text -> receiver sees no code field -> session restored', async ({ h, b }) => {
+test('2. skip the code: copy text -> receiver sees no code field -> session restored', async ({ h, b }) => {
   const a = await h.openPopup(FAST);
+  await skipCode(a);
   const value = MARKER();
   await mark(a.site, value);
   await exportSession(a.popup);
@@ -76,8 +95,9 @@ test('2. code OFF: copy text -> receiver sees no code field -> session restored'
   expect(await cookieMarker(b, h.fixture.origin)).toBe(value);
 });
 
-test('3. code OFF: download file -> load the file in the receiver -> session restored', async ({ h, b }) => {
+test('3. skip the code: download file -> load the file in the receiver -> session restored', async ({ h, b }) => {
   const a = await h.openPopup(FAST);
+  await skipCode(a);
   const value = MARKER();
   await mark(a.site, value);
   await exportSession(a.popup);
@@ -103,13 +123,8 @@ test('3. code OFF: download file -> load the file in the receiver -> session res
   await expect.poll(() => lsMarker(r.site), { timeout: 15_000 }).toBe(value);
 });
 
-test('4. code ON: setting persists, two-step screen, code asked, wrong code writes nothing, right code restores', async ({ h, b }) => {
+test('4. code (default): two-step screen, code asked, wrong code writes nothing, right code restores', async ({ h, b }) => {
   const a = await h.openPopup(FAST);
-  await a.popup.getByTestId('require-code-checkbox').check();
-  await a.site.bringToFront();
-  await a.popup.reload();
-  await expect(a.popup.getByTestId('require-code-checkbox')).toBeChecked(); // survives reopening
-  expect(await a.popup.evaluate((k) => chrome.storage.local.get(k), SETTING)).toEqual({ [SETTING]: true });
 
   const value = MARKER();
   await mark(a.site, value);
@@ -149,11 +164,7 @@ test('4. code ON: setting persists, two-step screen, code asked, wrong code writ
 for (const requireCode of [false, true]) {
   test(`5. an expired package is refused with a clear message and nothing is written (code ${requireCode ? 'ON' : 'OFF'})`, async ({ h, b }) => {
     const a = await h.openPopup(FAST);
-    if (requireCode) {
-      await a.popup.getByTestId('require-code-checkbox').check();
-      await a.site.bringToFront();
-      await a.popup.reload();
-    }
+    if (!requireCode) await skipCode(a);
     await mark(a.site, MARKER());
     await exportSession(a.popup);
     await a.popup.getByTestId('copy-package-button').click();
