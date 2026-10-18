@@ -223,7 +223,7 @@ function parsePackage(text: string): EncryptedPackage {
   try {
     pkg = JSON.parse(text) as EncryptedPackage;
   } catch {
-    throw new Error("This isn't a Session Transfer package. Paste the whole text or load the .json file.");
+    throw new Error("This isn't a Session Transfer package. Paste the whole text or load the .stpkg file you downloaded.");
   }
   if (!pkg || pkg.format !== PACKAGE_FORMAT) throw new Error('Unrecognized package format.');
   return pkg;
