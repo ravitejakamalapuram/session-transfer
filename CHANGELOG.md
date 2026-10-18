@@ -5,6 +5,9 @@ tag (release-platform stamps it into the built manifest), so the numbers below m
 
 ## [Unreleased]
 
+### Changed
+- The store listing description now links the threat model on GitHub.
+
 ### Fixed
 - The Ready screen no longer shows a green check when some data could not be read or nothing was found; it shows a
   warning naming what is missing.
