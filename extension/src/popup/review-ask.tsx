@@ -9,8 +9,10 @@ const local = (): LocalArea => chrome.storage.local;
 
 type Lock = <T>(fn: () => Promise<T>) => Promise<T>;
 // A Web Lock spans every page of the extension, so two restore screens cannot both claim it.
-const webLock: Lock = <T,>(fn: () => Promise<T>) =>
-  navigator.locks ? (navigator.locks.request(ASKED_KEY, fn) as Promise<T>) : fn();
+const webLock: Lock = <T,>(fn: () => Promise<T>) => {
+  const locks = globalThis.navigator?.locks;
+  return locks ? (locks.request(ASKED_KEY, fn) as Promise<T>) : fn();
+};
 
 /** True the first time only: marks the ask as used before answering, so it never shows twice. */
 export async function claimReviewAsk(area: LocalArea = local(), lock: Lock = webLock): Promise<boolean> {
