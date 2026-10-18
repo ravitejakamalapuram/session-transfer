@@ -7,6 +7,7 @@ test('large (>64 MiB) .stpkg file loads in the receiver and reaches Import', asy
   const a = await h.openPopup('ls=31&ss=26&idb=300&idbkb=120&cache=15&cachekb=100');
   await a.popup.getByTestId('transfer-session-button').click();
   await expect(a.popup.getByTestId('transfer-done-button')).toBeVisible({ timeout: 120_000 });
+  const code = (await a.popup.getByTestId('transfer-code').innerText()).trim(); // encrypted by default
   const [download] = await Promise.all([
     a.popup.waitForEvent('download'),
     a.popup.getByTestId('download-package-button').click(),
@@ -19,6 +20,8 @@ test('large (>64 MiB) .stpkg file loads in the receiver and reaches Import', asy
   await tab.goto(`chrome-extension://${b.extId}/index.html#receive`);
   await tab.getByTestId('package-file-input').setInputFiles(file);
   await expect(tab.getByTestId('package-loaded-large')).toBeVisible({ timeout: 60_000 });
+  await tab.getByTestId('inspect-button').click();
+  await tab.getByTestId('code-input').fill(code);
   await tab.getByTestId('inspect-button').click();
   await expect(tab.getByTestId('import-session-button')).toBeVisible({ timeout: 120_000 });
 });

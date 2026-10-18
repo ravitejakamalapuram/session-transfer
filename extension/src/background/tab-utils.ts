@@ -37,17 +37,19 @@ function waitForComplete(tabId: number, timeoutMs = 20000): Promise<void> {
 
 /**
  * Returns a tab that is on `origin`. Prefers an existing tab; otherwise opens
- * one. Always waits for load completion.
+ * one in the background. Always waits for load completion. The tab is never
+ * activated here: switching tabs closes the popup, which would lose the
+ * verification report (the popup's "Open Website" activates it afterwards).
  */
 export async function resolveDestinationTab(origin: string): Promise<chrome.tabs.Tab> {
   const tabs = await chrome.tabs.query({});
-  const existing = tabs.find((t) => t.url && originOf(t.url) === origin);
+  // A discarded tab does not load while inactive, so scripts could not run in it.
+  const existing = tabs.find((t) => !t.discarded && t.url && originOf(t.url) === origin);
   if (existing && existing.id != null) {
-    await chrome.tabs.update(existing.id, { active: true });
     await waitForComplete(existing.id);
     return existing;
   }
-  const created = await chrome.tabs.create({ url: origin + '/', active: true });
+  const created = await chrome.tabs.create({ url: origin + '/', active: false });
   if (created.id != null) await waitForComplete(created.id);
   return created;
 }

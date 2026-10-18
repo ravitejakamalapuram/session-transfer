@@ -14,10 +14,10 @@ const ICON = fs.readFileSync(path.resolve(import.meta.dirname, '../icons/icon128
 const SITE = 'https://app.example.com'; // fixed host so the pictures do not change from run to run
 const SEED = 'ls=18&ss=4&idb=120&cache=6';
 
-// Plain mode only: the transfer code is random, so it would change every run.
+// The transfer shot uses a plain package ("Skip the code"): the code is random, so it would change every run.
 const SHOTS = {
   home: { eyebrow: 'STEP 1 · PICK A SITE', title: 'Open the site.<br>Press <em>Transfer</em>.', text: 'See what will move before anything leaves the browser: cookies, localStorage, sessionStorage, IndexedDB and Cache Storage.' },
-  transfer: { eyebrow: 'STEP 2 · COPY THE PACKAGE', title: 'Copy it.<br>Lock it if you <em>want</em>.', text: 'Plain by default, so treat it like a password. Turn on "Encrypt with a transfer code" for AES-256-GCM. Packages older than 5 minutes are refused.' },
+  transfer: { eyebrow: 'STEP 2 · COPY THE PACKAGE', title: 'Copy it.<br>Locked by <em>default</em>.', text: 'Encrypted by default with AES-256-GCM and a transfer code. "Skip the code" makes a plain package, so treat that like a password. Packages older than 5 minutes are refused.' },
   receive: { eyebrow: 'STEP 3 · ON THE OTHER BROWSER', title: 'Paste it.<br>Check <em>what moves</em>.', text: 'A package can only be restored into its own website. You see the counts, then choose Replace, Merge or Cancel.' },
   restored: { eyebrow: 'DONE · CHECKED', title: 'Restored.<br><em>Then checked.</em>', text: 'After restoring, the extension reads the values back and reports what matched and what did not.' },
 } as const;
@@ -94,6 +94,7 @@ test('regenerate the four store screenshots from the real popup', async ({ h, b 
   await steady(a.popup);
   await expect(a.popup.getByTestId('origin-card')).toBeVisible();
   png.home = await shoot(a.popup);
+  await a.popup.getByTestId('skip-code-checkbox').check();
 
   await a.popup.getByTestId('transfer-session-button').click();
   await expect(a.popup.getByTestId('transfer-done-button')).toBeVisible({ timeout: 30_000 });

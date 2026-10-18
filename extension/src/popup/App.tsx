@@ -44,13 +44,14 @@ const COLLECT_TIMEOUT_MESSAGE =
 
 const NOTHING_SAVED: Saved = { package: false, code: false };
 
-// "Encrypt with a transfer code" setting. Per profile (storage.local), absent = OFF.
-const SETTING_KEY = 'settings.requireTransferCode';
+// "Skip the code" setting. Per profile (storage.local), absent = OFF, so packages are encrypted with a code.
+// A new key: the old opt-in 'settings.requireTransferCode' is ignored, so every profile starts encrypted.
+const SETTING_KEY = 'settings.skipTransferCode';
 async function loadRequireCode(): Promise<boolean> {
   try {
-    return (await chrome.storage.local.get(SETTING_KEY))[SETTING_KEY] === true;
+    return (await chrome.storage.local.get(SETTING_KEY))[SETTING_KEY] !== true;
   } catch {
-    return false;
+    return true;
   }
 }
 
@@ -102,7 +103,7 @@ export default function App() {
   const [copied, setCopied] = useState<'code' | 'package' | null>(null);
   const [saved, setSaved] = useState<Saved>(NOTHING_SAVED);
   const [guard, setGuard] = useState(false);
-  const [requireCode, setRequireCode] = useState(false);
+  const [requireCode, setRequireCode] = useState(true);
   const [extraDomains, setExtraDomains] = useState('');
   const [exportNote, setExportNote] = useState('');
   const [exporting, setExporting] = useState(false);
@@ -123,7 +124,7 @@ export default function App() {
   const [mismatch, setMismatch] = useState<{ packageOrigin: string; destOrigin: string } | null>(null);
   const [conflict, setConflict] = useState<{ destOrigin: string; counts: Record<TransferComponent, number> } | null>(null);
   const [strategy, setStrategy] = useState<ConflictStrategy>('cancel');
-  const [report, setReport] = useState<{ report: VerificationReport } | null>(null);
+  const [report, setReport] = useState<{ report: VerificationReport; tabId: number } | null>(null);
   const [errorMsg, setErrorMsg] = useState('');
   const [collecting, setCollecting] = useState(false);
   const [retry, setRetry] = useState<(() => void) | null>(null);
@@ -261,7 +262,7 @@ export default function App() {
             setCodeNeeded(true);
             setView('receive');
           } else if (msg.type === 'restored') {
-            setReport({ report: msg.report });
+            setReport({ report: msg.report, tabId: msg.tabId });
             setView('restored');
           } else if (msg.type === 'error') {
             toError(msg.message, null, true);
@@ -421,7 +422,11 @@ export default function App() {
             requireCode={requireCode}
             onRequireCode={(v) => {
               setRequireCode(v);
-              chrome.storage.local.set({ [SETTING_KEY]: v }).catch(() => undefined);
+              try {
+                chrome.storage.local.set({ [SETTING_KEY]: !v }).catch(() => undefined);
+              } catch {
+                // storage unavailable: the choice lasts until the popup closes
+              }
             }}
             collecting={collecting}
             progress={progress}
@@ -514,7 +519,7 @@ export default function App() {
 
         {view === 'restoring' && <Loading label="Restoring &amp; verifying…" />}
 
-        {view === 'restored' && report && <Restored data={report} onOpen={() => window.close()} onDone={reset} />}
+        {view === 'restored' && report && <Restored data={report} onOpen={() => openSite(report.tabId)} onDone={reset} />}
 
         {view === 'error' && (
           <div className="gap fade-in">
@@ -543,6 +548,17 @@ export default function App() {
       </footer>
     </div>
   );
+}
+
+// Shows the restored site. The tab was restored in the background so the popup could show the report.
+async function openSite(tabId: number) {
+  try {
+    const tab = await chrome.tabs.update(tabId, { active: true });
+    if (tab?.windowId != null) await chrome.windows.update(tab.windowId, { focused: true });
+  } catch {
+    /* tab was closed meanwhile: nothing to show */
+  }
+  if (!IS_RECEIVE_TAB) window.close();
 }
 
 // ---------------------------------------------------------------- subviews
@@ -648,16 +664,20 @@ function Home({
             : 'Creates one package to copy or download. It is not encrypted, so treat it like a password.'}
         </div>
       )}
-      <label className="check-row" data-testid="require-code-toggle">
-        <input
-          type="checkbox"
-          checked={requireCode}
-          disabled={collecting}
-          onChange={(e) => onRequireCode(e.target.checked)}
-          data-testid="require-code-checkbox"
-        />
-        Encrypt with a transfer code (more secure)
-      </label>
+      <div className="gap-sm">
+        <label className="check-row" data-testid="skip-code-toggle">
+          <input
+            type="checkbox"
+            checked={!requireCode}
+            disabled={collecting}
+            onChange={(e) => onRequireCode(!e.target.checked)}
+            data-testid="skip-code-checkbox"
+            aria-describedby="skip-code-hint"
+          />
+          Skip the code (same computer only)
+        </label>
+        <div id="skip-code-hint" className="check-hint">Anyone who sees a plain package can use the login.</div>
+      </div>
       <Button testid="receive-session-button" variant="ghost" onClick={onReceive} disabled={collecting}>
         Receive Session
       </Button>
@@ -915,7 +935,7 @@ function Conflict({
   );
 }
 
-function Restored({ data, onOpen, onDone }: { data: { report: VerificationReport }; onOpen: () => void; onDone: () => void }) {
+function Restored({ data, onOpen, onDone }: { data: { report: VerificationReport; tabId: number }; onOpen: () => void; onDone: () => void }) {
   const { report } = data;
   return (
     <div className="gap fade-in">

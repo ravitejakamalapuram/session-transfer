@@ -1,10 +1,10 @@
-// Acceptance tests for the 1.3.0 behaviour: plain-by-default packages, honest verification,
+// Acceptance tests for the 1.3.0 behaviour (encrypted by default since Unreleased), honest verification,
 // safe Replace/Merge, IndexedDB robustness, no backups. `h` sends, `b` receives (separate profiles).
 import { test, expect, Page } from './fixtures';
 
 const READY = 'transfer-done-button';
 const FAST = 'ls=3&ss=3&idb=5&cache=2';
-const SETTING = 'settings.requireTransferCode';
+const SETTING = 'settings.skipTransferCode';
 const uniq = () => `marker-${Math.random().toString(36).slice(2)}`;
 
 async function mark(site: Page, value: string) {
@@ -17,16 +17,31 @@ const ls = (site: Page, key: string) => site.evaluate((k) => localStorage.getIte
 const cookie = async (b: { context: import('@playwright/test').BrowserContext }, origin: string, name: string) =>
   (await b.context.cookies(origin)).find((c) => c.name === name)?.value ?? null;
 
+// Transfer code of each exported package (code mode is the default), so receive() can enter it.
+const codes = new Map<string, string>();
 async function exportAndCopy(popup: Page): Promise<string> {
   await popup.getByTestId('transfer-session-button').click();
   await expect(popup.getByTestId(READY)).toBeVisible({ timeout: 30_000 });
   await popup.getByTestId('copy-package-button').click();
-  return popup.evaluate(() => navigator.clipboard.readText());
+  const text = await popup.evaluate(() => navigator.clipboard.readText());
+  const code = popup.getByTestId('transfer-code');
+  if (await code.count()) codes.set(text, (await code.innerText()).trim());
+  return text;
+}
+async function skipCode(a: { site: Page; popup: Page }) {
+  await a.popup.getByTestId('skip-code-checkbox').check();
+  await a.site.bringToFront();
+  await a.popup.reload();
 }
 async function receive(popup: Page, text: string) {
   await popup.getByTestId('receive-session-button').click();
   await popup.getByTestId('package-textarea').fill(text);
   await popup.getByTestId('inspect-button').click();
+  const code = codes.get(text);
+  if (code) {
+    await popup.getByTestId('code-input').fill(code);
+    await popup.getByTestId('inspect-button').click();
+  }
   await expect(popup.getByTestId('import-session-button')).toBeVisible({ timeout: 30_000 });
 }
 /** Import and pick a conflict strategy (the fixture always seeds the destination). */
@@ -37,8 +52,9 @@ async function importWith(popup: Page, strategy: 'replace' | 'merge') {
   await expect(popup.getByTestId('verification-status')).toBeVisible({ timeout: 30_000 });
 }
 
-test('A. default package is plain: no encryption, readable payload, no code, full round trip, verification passes', async ({ h, b }) => {
+test('A. with "Skip the code" the package is plain: no encryption, readable payload, no code, full round trip, verification passes', async ({ h, b }) => {
   const a = await h.openPopup(FAST);
+  await skipCode(a);
   const value = uniq();
   await mark(a.site, value);
   const text = await exportAndCopy(a.popup);
@@ -59,13 +75,11 @@ test('A. default package is plain: no encryption, readable payload, no code, ful
   expect(await cookie(b, h.fixture.origin, 'marker')).toBe(value);
 });
 
-test('B. the toggle is "Encrypt with a transfer code"; ON hides the payload and shows the code', async ({ h, b }) => {
+test('B. by default the package is encrypted and the code is shown; the opt-out is "Skip the code"', async ({ h, b }) => {
   const a = await h.openPopup(FAST);
-  const toggle = a.popup.getByTestId('require-code-checkbox');
-  await expect(a.popup.getByTestId('require-code-toggle')).toContainText('Encrypt with a transfer code');
-  await expect(toggle).not.toBeChecked();
-  await toggle.check();
-  expect((await a.popup.evaluate((k) => chrome.storage.local.get(k), SETTING))[SETTING]).toBe(true);
+  await expect(a.popup.getByTestId('skip-code-toggle')).toContainText('Skip the code (same computer only)');
+  await expect(a.popup.getByTestId('skip-code-checkbox')).not.toBeChecked();
+  expect(await a.popup.evaluate((k) => chrome.storage.local.get(k), SETTING)).toEqual({});
 
   const value = uniq();
   await mark(a.site, value);
@@ -171,6 +185,7 @@ test('G. no backup option anywhere: Replace has no backup toggle and the report 
 
 test('H. a tampered plain package is still refused when its origin is changed', async ({ h, b }) => {
   const a = await h.openPopup(FAST);
+  await skipCode(a);
   const pkg = JSON.parse(await exportAndCopy(a.popup));
   pkg.origin = 'https://evil.test';
   const r = await b.openPopup(FAST);
