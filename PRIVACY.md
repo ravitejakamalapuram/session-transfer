@@ -18,12 +18,13 @@ user-selected website between browser environments.
 
 - **User-initiated only.** Data is read only for the site the user selects,
   and only when the user presses Transfer or Receive in the popup.
-- **Local, optionally encrypted.** Captured state is built on the device and
-  saved by the user as a file or copied as text. By default it is **not
-  encrypted**: anyone with the text or file can restore the session, so treat
-  it like a password. If the user turns on "Encrypt with a transfer code", it
-  is encrypted with AES-256-GCM, with a key derived with PBKDF2-SHA256 from a
-  transfer code (new for each export) that is not in the package. The
+- **Local, encrypted by default.** Captured state is built on the device and
+  saved by the user as a file or copied as text. By default it is encrypted
+  with AES-256-GCM, with a key derived with PBKDF2-SHA256 from a transfer code
+  (new for each export) that is not in the package. If the user turns on
+  "Skip the code (same computer only)", the package is **not encrypted**:
+  anyone with the text or file can restore the session, so treat it like a
+  password. The
   extension refuses to import a package more than 5 minutes after it was
   made; this is a check made by the extension, not a cryptographic limit. The
   extension does not keep backups of destination state.
@@ -36,7 +37,7 @@ user-selected website between browser environments.
 - `cookies` — read and restore cookies for the selected site.
 - `scripting` — run a one-time, user-initiated collect/restore function in the
   selected tab for localStorage, sessionStorage, IndexedDB and Cache Storage.
-- `storage` — hold the on-device "Encrypt with a transfer code" setting and
+- `storage` — hold the on-device "Skip the code" setting and
   the short-lived "ready" result while the popup is closed.
 - Host access — sessions can be transferred for any site the user is logged
   into; access is on demand and limited to the selected origin.
