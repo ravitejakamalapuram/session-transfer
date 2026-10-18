@@ -58,3 +58,6 @@ Privacy policy: <https://ravitejakamalapuram.github.io/session-transfer.html>
 
 Session Transfer handles data equivalent to passwords. Never share the transfer
 code over the same channel as the package.
+
+Read the [threat model](extension/docs/threat-model.md) for what the extension
+protects against and what it does not.

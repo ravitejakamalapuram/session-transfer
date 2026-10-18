@@ -53,7 +53,7 @@ IDEAL FOR
 • Switching to a new computer or Chrome browser.
 • QA teams reproducing logged-in states.
 
-The full capability table and threat model are in the GitHub repository.
+Threat model (what the extension protects against and what it does not): https://github.com/ravitejakamalapuram/session-transfer/blob/main/extension/docs/threat-model.md
 ```
 
 ---
