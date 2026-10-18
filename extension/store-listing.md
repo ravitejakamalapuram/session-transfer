@@ -46,7 +46,7 @@ Reviewers will install and run the extension, so do this first:
 > PRIVACY AND LIMITS
 > • Encrypted by default with AES-256-GCM, using a key derived from a transfer code you send on another channel (PBKDF2-SHA256, 600,000 iterations). "Skip the code (same computer only)" makes a plain package instead; treat that like a password.
 > • Packages expire 5 minutes after export (the extension allows up to 1 extra minute for clock differences between computers).
-> • A package restores only into the website origin it was exported from.
+> • Encrypted packages restore only into the website origin they were exported from (the origin is bound as AEAD authenticated data). A "Skip the code" package has no tamper detection; the extension still checks its origin before restoring.
 > • If the destination already has a session, you choose Replace, Merge or Cancel; nothing is overwritten silently.
 > • Passkeys/WebAuthn, hardware-backed credentials and TLS-bound state cannot be transferred, and the popup says so. Some sites tie a session to a device and may still ask you to sign in.
 >
@@ -90,7 +90,7 @@ The four screenshots are made from the real popup: `cd extension && npm run buil
 - **cookies** — "Reading and restoring cookies (including HttpOnly/Secure) is the core mechanism for transferring authenticated sessions. Cookies are accessed only for the selected origin and for up to 5 host names the user adds under More options."
 - **scripting** — "Used to run an on-demand, user-initiated collect/restore function in the active tab to read/write that origin's localStorage, sessionStorage, IndexedDB and Cache Storage. No code runs automatically on page load."
 - **storage** — "Keeps the on-device setting and a short-lived ready result while the popup is closed. Never synced, never transmitted."
-- **host_permissions (http/https)** — "The product's purpose is transferring sessions for any website the user is logged into, so a fixed host list is impossible. Access is on-demand (user clicks the toolbar action), page scripting is limited to the selected origin, cookie reads also cover up to 5 host names the user adds under More options, and a package restores only into the origin it was exported from (for encrypted packages the origin is also bound as AEAD authenticated data)."
+- **host_permissions (http/https)** — "The product's purpose is transferring sessions for any website the user is logged into, so a fixed host list is impossible. Access is on-demand (user clicks the toolbar action), page scripting is limited to the selected origin, cookie reads also cover up to 5 host names the user adds under More options, and restore targets the package's own origin: encrypted packages bind that origin as AEAD authenticated data, while plain ("Skip the code") packages have no tamper detection and rely on an extension-side origin check."
 
 **Remote code:** "No — this extension does not use remote code."
 

@@ -51,7 +51,7 @@ facts:
     note: "The expiry is an extension-side check in BOTH modes. In skip-the-code mode the package is plain, so after expiry anyone with the text can still read it with a short script and the cookies work until the site ends the session. In code mode, someone with package + code can do the same. Say 'packages expire 5 minutes after export (up to 1 extra minute is allowed for clock differences)'; do NOT say 'cryptographically expires', 'self-destructs' or 'cannot be used after 5 minutes'."
 
   origin_binding:
-    claim: "A package restores only into the website origin it was exported from. The origin (with expiry and key mode) is bound as AES-GCM authenticated data, and it is re-checked after decrypt."
+    claim: "Restore targets the package's own origin. In an encrypted package the origin (with expiry and key mode) is bound as AES-GCM authenticated data and re-checked after decrypt; a plain ('Skip the code') package has no tamper detection, so its origin check is an extension check, not a guarantee."
     status: safe
     sources: ["README.md:15", "CHROMEWEBSTORE.md:37,61"]
     code: ["extension/src/core/crypto.ts (headerAad: origin in AAD; decryptPayload: payload origin must equal package origin)", "extension/src/background/service-worker.ts (handleRestore: originMismatch confirmation; resolveDestinationTab(origin))"]
