@@ -5,7 +5,12 @@ tag (release-platform stamps it into the built manifest), so the numbers below m
 
 ## [Unreleased]
 
+### Changed
+- The store listing description now links the threat model on GitHub.
+
 ### Fixed
+- The Ready screen no longer shows a green check when some data could not be read or nothing was found; it shows a
+  warning naming what is missing.
 - Replace no longer removes cookies of an unrelated subdomain, and now removes leftover partitioned cookies from their
   own partition.
 - The popup header said "AES-256-GCM · local only" even for the default plain package. It now reads "Move a logged-in
@@ -13,12 +18,18 @@ tag (release-platform stamps it into the built manifest), so the numbers below m
 - Receive keeps the pasted package and code after an error such as a wrong code, says plainly when the pasted text
   is not a package, and accepts a package up to one minute past expiry to allow for clock differences.
 - Popup hints are easier to read (lighter muted text, nothing below 11px) and keyboard focus now shows a visible ring.
+- Keyboard and screen readers: the package file button opens with Enter or Space, the package and code fields have labels, and
+  progress, results and errors are announced.
 
 ### Added
 - A local welcome page opens once after the first install (not on updates) with the three transfer steps, how to pin
   the icon and the 5-minute package window.
 
 ### Changed
+- **Packages are encrypted by default.** Transfer now makes an AES-256-GCM package and a transfer code (new for each
+  export) unless the new setting "Skip the code (same computer only)" is on; that makes a plain package, which anyone
+  who sees it can use. The choice is kept per browser profile. The old "Encrypt with a transfer code" setting is not
+  carried over, so every profile starts encrypted. Receive still accepts both plain and encrypted packages.
 - Store screenshots are generated from the real popup (`e2e/store-shots.spec.ts`) and the promo tiles no longer claim
   encryption by default; the old images still showed backups and an always-required code.
 - Release and listing automation drafts: `docs/release-automation/`.

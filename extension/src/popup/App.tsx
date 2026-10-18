@@ -43,13 +43,14 @@ const COLLECT_TIMEOUT_MESSAGE =
 
 const NOTHING_SAVED: Saved = { package: false, code: false };
 
-// "Encrypt with a transfer code" setting. Per profile (storage.local), absent = OFF.
-const SETTING_KEY = 'settings.requireTransferCode';
+// "Skip the code" setting. Per profile (storage.local), absent = OFF, so packages are encrypted with a code.
+// A new key: the old opt-in 'settings.requireTransferCode' is ignored, so every profile starts encrypted.
+const SETTING_KEY = 'settings.skipTransferCode';
 async function loadRequireCode(): Promise<boolean> {
   try {
-    return (await chrome.storage.local.get(SETTING_KEY))[SETTING_KEY] === true;
+    return (await chrome.storage.local.get(SETTING_KEY))[SETTING_KEY] !== true;
   } catch {
-    return false;
+    return true;
   }
 }
 
@@ -101,7 +102,7 @@ export default function App() {
   const [copied, setCopied] = useState<'code' | 'package' | null>(null);
   const [saved, setSaved] = useState<Saved>(NOTHING_SAVED);
   const [guard, setGuard] = useState(false);
-  const [requireCode, setRequireCode] = useState(false);
+  const [requireCode, setRequireCode] = useState(true);
   const [extraDomains, setExtraDomains] = useState('');
   const [exportNote, setExportNote] = useState('');
   const [exporting, setExporting] = useState(false);
@@ -122,7 +123,7 @@ export default function App() {
   const [mismatch, setMismatch] = useState<{ packageOrigin: string; destOrigin: string } | null>(null);
   const [conflict, setConflict] = useState<{ destOrigin: string; counts: Record<TransferComponent, number> } | null>(null);
   const [strategy, setStrategy] = useState<ConflictStrategy>('cancel');
-  const [report, setReport] = useState<{ report: VerificationReport } | null>(null);
+  const [report, setReport] = useState<{ report: VerificationReport; tabId: number } | null>(null);
   const [errorMsg, setErrorMsg] = useState('');
   const [collecting, setCollecting] = useState(false);
   const [retry, setRetry] = useState<(() => void) | null>(null);
@@ -260,7 +261,7 @@ export default function App() {
             setCodeNeeded(true);
             setView('receive');
           } else if (msg.type === 'restored') {
-            setReport({ report: msg.report });
+            setReport({ report: msg.report, tabId: msg.tabId });
             setView('restored');
           } else if (msg.type === 'error') {
             toError(msg.message, null, true);
@@ -420,7 +421,11 @@ export default function App() {
             requireCode={requireCode}
             onRequireCode={(v) => {
               setRequireCode(v);
-              chrome.storage.local.set({ [SETTING_KEY]: v }).catch(() => undefined);
+              try {
+                chrome.storage.local.set({ [SETTING_KEY]: !v }).catch(() => undefined);
+              } catch {
+                // storage unavailable: the choice lasts until the popup closes
+              }
             }}
             collecting={collecting}
             progress={progress}
@@ -513,12 +518,12 @@ export default function App() {
 
         {view === 'restoring' && <Loading label="Restoring &amp; verifying…" />}
 
-        {view === 'restored' && report && <Restored data={report} onOpen={() => window.close()} onDone={reset} />}
+        {view === 'restored' && report && <Restored data={report} onOpen={() => openSite(report.tabId)} onDone={reset} />}
 
         {view === 'error' && (
           <div className="gap fade-in">
             <div className="big-check warn">✗</div>
-            <div className="callout danger" data-testid="error-message">
+            <div className="callout danger" aria-live="polite" data-testid="error-message">
               {errorMsg}
             </div>
             {retry && (
@@ -544,12 +549,23 @@ export default function App() {
   );
 }
 
+// Shows the restored site. The tab was restored in the background so the popup could show the report.
+async function openSite(tabId: number) {
+  try {
+    const tab = await chrome.tabs.update(tabId, { active: true });
+    if (tab?.windowId != null) await chrome.windows.update(tab.windowId, { focused: true });
+  } catch {
+    /* tab was closed meanwhile: nothing to show */
+  }
+  if (!IS_RECEIVE_TAB) window.close();
+}
+
 // ---------------------------------------------------------------- subviews
 function Loading({ label }: { label?: string }) {
   return (
     <div className="center fade-in" style={{ marginTop: 40 }}>
       <span className="spinner" style={{ width: 22, height: 22 }} />
-      <div className="hint" dangerouslySetInnerHTML={{ __html: label ?? 'Reading active tab…' }} />
+      <div className="hint" aria-live="polite" dangerouslySetInnerHTML={{ __html: label ?? 'Reading active tab…' }} />
     </div>
   );
 }
@@ -630,7 +646,7 @@ function Home({
         )}
       </Button>
       {collecting ? (
-        <div className="rows" data-testid="collect-progress">
+        <div className="rows" aria-live="polite" data-testid="collect-progress">
           {ALL_COMPONENTS.map((c) => (
             <ComponentRow
               key={c}
@@ -647,16 +663,20 @@ function Home({
             : 'Creates one package to copy or download. It is not encrypted, so treat it like a password.'}
         </div>
       )}
-      <label className="check-row" data-testid="require-code-toggle">
-        <input
-          type="checkbox"
-          checked={requireCode}
-          disabled={collecting}
-          onChange={(e) => onRequireCode(e.target.checked)}
-          data-testid="require-code-checkbox"
-        />
-        Encrypt with a transfer code (more secure)
-      </label>
+      <div className="gap-sm">
+        <label className="check-row" data-testid="skip-code-toggle">
+          <input
+            type="checkbox"
+            checked={!requireCode}
+            disabled={collecting}
+            onChange={(e) => onRequireCode(!e.target.checked)}
+            data-testid="skip-code-checkbox"
+            aria-describedby="skip-code-hint"
+          />
+          Skip the code (same computer only)
+        </label>
+        <div id="skip-code-hint" className="check-hint">Anyone who sees a plain package can use the login.</div>
+      </div>
       <Button testid="receive-session-button" variant="ghost" onClick={onReceive} disabled={collecting}>
         Receive Session
       </Button>
@@ -729,6 +749,7 @@ function Receive({
   onInspect: () => void;
   onBack: () => void;
 }) {
+  const fileInput = useRef<HTMLInputElement>(null);
   const hasPackage = packageText.trim().length > 20;
   const hasCode = code.trim().length >= 8;
   const showCode = codeNeeded || hasCode;
@@ -762,9 +783,21 @@ function Receive({
           {fileName ? `📄 ${fileName}` : '📁 Load package file (.stpkg)'}
         </button>
       ) : (
-        <label className="btn ghost" style={{ cursor: 'pointer' }} data-testid="load-file-label">
+        // The input is hidden, so the label takes keyboard focus and opens the picker itself.
+        <label
+          className="btn ghost"
+          style={{ cursor: 'pointer' }}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key !== 'Enter' && e.key !== ' ') return;
+            e.preventDefault();
+            fileInput.current?.click();
+          }}
+          data-testid="load-file-label"
+        >
           {fileName ? `📄 ${fileName}` : '📁 Load package file (.stpkg)'}
-          <input type="file" accept=".stpkg,.json,application/json" style={{ display: 'none' }} onChange={onFile} data-testid="package-file-input" />
+          <input ref={fileInput} type="file" accept=".stpkg,.json,application/json" style={{ display: 'none' }} onChange={onFile} data-testid="package-file-input" />
         </label>
       )}
 
@@ -777,6 +810,7 @@ function Receive({
           className="textarea"
           rows={4}
           placeholder="…or paste the package here"
+          aria-label="Package"
           value={packageText}
           onChange={(e) => onPackageChange(e.target.value)}
           data-testid="package-textarea"
@@ -791,6 +825,7 @@ function Receive({
           <input
             className="input code-input"
             placeholder="ABC7-K9P2-WXYZ"
+            aria-label="Transfer code"
             value={code}
             onChange={(e) => onCodeChange(e.target.value)}
             data-testid="code-input"
@@ -899,7 +934,7 @@ function Conflict({
   );
 }
 
-function Restored({ data, onOpen, onDone }: { data: { report: VerificationReport }; onOpen: () => void; onDone: () => void }) {
+function Restored({ data, onOpen, onDone }: { data: { report: VerificationReport; tabId: number }; onOpen: () => void; onDone: () => void }) {
   const { report } = data;
   return (
     <div className="gap fade-in">
@@ -922,7 +957,7 @@ function Restored({ data, onOpen, onDone }: { data: { report: VerificationReport
         ))}
       </div>
 
-      <div className={`callout ${report.passed ? 'ok' : 'warn'}`} data-testid="verification-status">
+      <div className={`callout ${report.passed ? 'ok' : 'warn'}`} aria-live="polite" data-testid="verification-status">
         Verification: {report.passed ? 'Passed' : 'Partial'} · {report.reloaded ? 'page reloaded' : 'reload manually'}
       </div>
 

@@ -6,11 +6,11 @@ from one Chrome profile, browser or device to another.
 
 > Export Session → Transfer → Import → Restore → Verify → Reload → you're logged in.
 
-- **Plain by default, encrypted on request.** By default the package is not
-  encrypted, so treat the copied text or downloaded file like a password. The
-  setting **Encrypt with a transfer code (more secure)** encrypts it
-  (AES-256-GCM, key derived from a code you send on a second channel,
-  PBKDF2-SHA256, 600,000 iterations).
+- **Encrypted by default.** The package is encrypted with AES-256-GCM, with a
+  key derived from a transfer code you send on a second channel
+  (PBKDF2-SHA256, 600,000 iterations). The setting **Skip the code (same
+  computer only)** makes a plain package instead: anyone who sees it can use
+  the login, so treat it like a password.
 - **Fully local** — no server, no account, no telemetry. Packages are only
   accepted by the extension for 5 minutes.
 - **Origin-bound** — a package can only be restored into its own website origin.
@@ -58,3 +58,6 @@ Privacy policy: <https://ravitejakamalapuram.github.io/session-transfer.html>
 
 Session Transfer handles data equivalent to passwords. Never share the transfer
 code over the same channel as the package.
+
+Read the [threat model](extension/docs/threat-model.md) for what the extension
+protects against and what it does not.

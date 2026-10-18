@@ -24,7 +24,7 @@
 Chosen by the owner on 2026-10-17 so the title carries the words people search for. The toolbar tooltip and the popup header still say `Session Transfer`. Keep `name` in `extension/manifest.config.ts`, `chrome-store/store.config.json` and `app-metadata.json` the same.
 
 ### Short Description (max 132 characters)
-> Move your login (cookies + storage) to another Chrome profile or computer, or export it as Playwright storageState. Local only.
+> Move your login (cookies + storage) to another Chrome profile or computer, encrypted. Or export a plain Playwright storageState.
 
 ### Detailed Description
 ```markdown
@@ -34,18 +34,18 @@ No servers, no account, no analytics: the extension makes no network requests. P
 
 HOW IT WORKS
 1. In the source browser, open the site, click the extension and press "Transfer Session".
-2. The extension packs the site's cookies (including HttpOnly), localStorage, sessionStorage, IndexedDB and Cache Storage into one package that you copy or download.
-3. In the destination browser, press "Receive Session" and paste or load the package (and enter the transfer code if the package asks for one). The session is restored, the page reloads, and the popup shows a verification report of what was written.
+2. The extension packs the site's cookies (including HttpOnly), localStorage, sessionStorage, IndexedDB and Cache Storage into one package that you copy or download, encrypted with a transfer code by default.
+3. In the destination browser, press "Receive Session" paste or load the package and enter the transfer code if it asks for one. The session is restored, the page reloads, and the popup shows a verification report of what was written.
 
 PRIVACY AND LIMITS
-• Not encrypted by default: anyone with the copied text or file can restore the session, so treat it like a password. Turn on "Encrypt with a transfer code" to encrypt it with AES-256-GCM, using a key derived from a code you send on another channel (PBKDF2-SHA256, 600,000 iterations).
+• Encrypted by default with AES-256-GCM, using a key derived from a transfer code you send on another channel (PBKDF2-SHA256, 600,000 iterations). "Skip the code (same computer only)" makes a plain package instead; treat that like a password.
 • The extension refuses packages older than 5 minutes.
 • A package restores only into the website origin it was exported from.
 • If the destination already has a session, you choose Replace, Merge or Cancel; nothing is overwritten silently.
 • Passkeys/WebAuthn, hardware-backed credentials and TLS-bound state cannot be transferred, and the popup says so. Some sites tie a session to a device and may still ask you to sign in.
 
 FOR DEVELOPERS AND QA
-• "Export for Playwright" (under More options) saves the current site's cookies (except partitioned CHIPS cookies) and localStorage as a Playwright storageState .json file, so automated tests can start already logged in. sessionStorage and IndexedDB are not included, and the file holds live logins.
+• "Export for Playwright" (under More options) saves the current site's cookies (except partitioned CHIPS cookies) and localStorage as a plain (unencrypted) Playwright storageState .json file, so automated tests can start already logged in. sessionStorage and IndexedDB are not included, and the file holds live logins.
 • Signing in through another site? Add its host name (up to 5) under More options and its cookies are added to the package.
 
 IDEAL FOR
@@ -53,7 +53,7 @@ IDEAL FOR
 • Switching to a new computer or Chrome browser.
 • QA teams reproducing logged-in states.
 
-The full capability table and threat model are in the GitHub repository.
+Threat model (what the extension protects against and what it does not): https://github.com/ravitejakamalapuram/session-transfer/blob/main/extension/docs/threat-model.md
 ```
 
 ---
@@ -78,14 +78,14 @@ Google review requires specific plain-English justification for each declared pe
   ⬇
   Popup UI ↔ background service worker (on-demand, user-initiated injection into the selected tab only)
   ⬇
-  Cookies + origin storage for the selected site are packaged locally (optionally encrypted: AES-256-GCM, PBKDF2-SHA256)
+  Cookies + origin storage for the selected site are packaged locally (encrypted by default: AES-256-GCM, PBKDF2-SHA256)
   ⬇
   `.stpkg` file saved by the user
   ⬇
   No network transmission — the extension contacts no servers
 
 - **Data Handling Summary**:
-  - **Authentication information (cookies, site storage)**: Collected: Yes, only for the site the user selects and only when the user clicks Transfer | Stored: Only inside the user-downloaded package (encrypted if the user turns that on) | Purpose: Move the user's own logged-in session to another browser/profile. Never transmitted to the developer or any third party.
+  - **Authentication information (cookies, site storage)**: Collected: Yes, only for the site the user selects and only when the user clicks Transfer | Stored: Only inside the user-downloaded package (encrypted by default; plain only if the user turns on "Skip the code") | Purpose: Move the user's own logged-in session to another browser/profile. Never transmitted to the developer or any third party.
   - **Website content**: Collected: No | Stored: No | Purpose: None — page content is not read beyond the selected origin's storage.
   - **Analytics & Telemetry**: Collected: No | Stored: No | Purpose: None collected.
 
