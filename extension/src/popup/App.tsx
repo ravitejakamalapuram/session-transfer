@@ -122,7 +122,7 @@ export default function App() {
   const [mismatch, setMismatch] = useState<{ packageOrigin: string; destOrigin: string } | null>(null);
   const [conflict, setConflict] = useState<{ destOrigin: string; counts: Record<TransferComponent, number> } | null>(null);
   const [strategy, setStrategy] = useState<ConflictStrategy>('cancel');
-  const [report, setReport] = useState<{ report: VerificationReport } | null>(null);
+  const [report, setReport] = useState<{ report: VerificationReport; tabId: number } | null>(null);
   const [errorMsg, setErrorMsg] = useState('');
   const [collecting, setCollecting] = useState(false);
   const [retry, setRetry] = useState<(() => void) | null>(null);
@@ -260,7 +260,7 @@ export default function App() {
             setCodeNeeded(true);
             setView('receive');
           } else if (msg.type === 'restored') {
-            setReport({ report: msg.report });
+            setReport({ report: msg.report, tabId: msg.tabId });
             setView('restored');
           } else if (msg.type === 'error') {
             toError(msg.message, null, true);
@@ -513,7 +513,7 @@ export default function App() {
 
         {view === 'restoring' && <Loading label="Restoring &amp; verifying…" />}
 
-        {view === 'restored' && report && <Restored data={report} onOpen={() => window.close()} onDone={reset} />}
+        {view === 'restored' && report && <Restored data={report} onOpen={() => openSite(report.tabId)} onDone={reset} />}
 
         {view === 'error' && (
           <div className="gap fade-in">
@@ -542,6 +542,17 @@ export default function App() {
       </footer>
     </div>
   );
+}
+
+// Shows the restored site. The tab was restored in the background so the popup could show the report.
+async function openSite(tabId: number) {
+  try {
+    const tab = await chrome.tabs.update(tabId, { active: true });
+    if (tab?.windowId != null) await chrome.windows.update(tab.windowId, { focused: true });
+  } catch {
+    /* tab was closed meanwhile: nothing to show */
+  }
+  if (!IS_RECEIVE_TAB) window.close();
 }
 
 // ---------------------------------------------------------------- subviews
@@ -899,7 +910,7 @@ function Conflict({
   );
 }
 
-function Restored({ data, onOpen, onDone }: { data: { report: VerificationReport }; onOpen: () => void; onDone: () => void }) {
+function Restored({ data, onOpen, onDone }: { data: { report: VerificationReport; tabId: number }; onOpen: () => void; onDone: () => void }) {
   const { report } = data;
   return (
     <div className="gap fade-in">

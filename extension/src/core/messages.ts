@@ -55,7 +55,7 @@ export type OpResponse =
   | { type: 'codeRequired'; expiresAt: number; origin: string }
   | { type: 'conflict'; destOrigin: string; counts: Record<TransferComponent, number> }
   | { type: 'originMismatch'; packageOrigin: string; destOrigin: string }
-  | { type: 'restored'; report: VerificationReport }
+  | { type: 'restored'; report: VerificationReport; tabId: number }
   | { type: 'error'; message: string };
 
 export interface DetectInfo {
