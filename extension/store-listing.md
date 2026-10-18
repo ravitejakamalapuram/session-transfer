@@ -10,7 +10,7 @@ review, typically 1–3 days for a new extension with host permissions).
 Reviewers will install and run the extension, so do this first:
 
 1. Build the zip with `cd extension && npm run zip` (it writes `session-transfer-v<version>.zip`, named from `extension/package.json`), unzip it → `chrome://extensions` → Developer mode → **Load unpacked**.
-2. Log into any site (e.g. GitHub) in the tab → click extension → **Transfer Session** → download the package and note the transfer code.
+2. Log into any site (e.g. GitHub) in the tab → click extension → leave **Skip the code** unchecked → **Transfer Session** → download the package and note the transfer code.
 3. Open a second Chrome profile with the extension → **Receive Session** → load the package + code → **Import Session** → confirm you're logged in and the verification report passes.
 
 ---
