@@ -26,7 +26,7 @@ package = header + { alg, iv, ciphertext } + { key } (embedded) or { kdf, iterat
 
 - Only Web Crypto primitives; no custom cryptography.
 - Fresh key per export in both modes, never stored by the extension (apart from the Ready result in `chrome.storage.session`, #9).
-- The header (origin, expiry, key mode) is bound via AAD, so changing it breaks decryption. This protects integrity; in plain mode someone who holds the package can also re-encrypt their own, which is why the expiry is an extension check and not a secrecy guarantee.
+- In an encrypted package the header (origin, expiry, key mode) is bound via AAD, so changing it breaks decryption. A "Skip the code" package (keyMode 'none') is not authenticated: someone who holds it can change its origin and expiry, so for those packages the origin and expiry checks are extension checks, not security guarantees.
 - Version 1 packages (code only, AAD = origin) are still read. A version 1 receiver (older extension) cannot read a version 2 default-mode package: update the extension in both browsers.
 
 ## Secret handling

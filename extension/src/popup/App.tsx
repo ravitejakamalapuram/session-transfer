@@ -337,9 +337,11 @@ export default function App() {
   const onFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setFileName(file.name);
     const reader = new FileReader();
-    reader.onload = () => setPackageText(String(reader.result ?? ''));
+    reader.onload = () => {
+      setFileName(file.name);
+      setPackageText(String(reader.result ?? ''));
+    };
     reader.onerror = () => toError('Could not read the file.', null, true);
     reader.readAsText(file);
   };

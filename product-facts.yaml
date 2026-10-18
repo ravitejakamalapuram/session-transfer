@@ -43,12 +43,12 @@ facts:
     note: "'One-time' would mean a fresh code per export, not single-use: nothing marks a package or code as used, so the same package + code can be imported again until it expires. Do not say 'one-time code' in listing copy, 'works only once' or 'self-destructs'."
 
   package_expiry:
-    claim: "The extension refuses to import a package more than 5 minutes after export ('This transfer has expired.'), and refuses a package whose stated lifetime is over 5 min 30 s. Both are checked before anything is decrypted."
+    claim: "The extension refuses to import a package more than 5 minutes after export, plus up to 1 minute of clock-skew grace ('This package has expired.'), and refuses a package whose stated lifetime is over 5 min 30 s. Both are checked before anything is decrypted."
     status: narrow
     sources: ["CHROMEWEBSTORE.md (SECURITY bullet 3)", "PRIVACY.md:21-29", "extension/docs/threat-model.md #8"]
     code: ["extension/src/background/service-worker.ts (TRANSFER_TTL_MS = 5 * 60 * 1000; passed to encryptPayload)", "extension/src/core/crypto.ts (checkPackage: expiry then lifetime; MAX_PACKAGE_LIFETIME_MS)", "extension/src/popup/ready.tsx + App.tsx (UI shows 'Expires in ...' / 'expires in ...')"]
     verdict: "CONFIRMED in code."
-    note: "The expiry is an extension-side check in BOTH modes. In skip-the-code mode the package is plain, so after expiry anyone with the text can still read it with a short script and the cookies work until the site ends the session. In code mode, someone with package + code can do the same. Say 'the extension refuses packages older than 5 minutes'; do NOT say 'cryptographically expires', 'self-destructs' or 'cannot be used after 5 minutes'."
+    note: "The expiry is an extension-side check in BOTH modes. In skip-the-code mode the package is plain, so after expiry anyone with the text can still read it with a short script and the cookies work until the site ends the session. In code mode, someone with package + code can do the same. Say 'packages expire 5 minutes after export (up to 1 extra minute is allowed for clock differences)'; do NOT say 'cryptographically expires', 'self-destructs' or 'cannot be used after 5 minutes'."
 
   origin_binding:
     claim: "A package restores only into the website origin it was exported from. The origin (with expiry and key mode) is bound as AES-GCM authenticated data, and it is re-checked after decrypt."
