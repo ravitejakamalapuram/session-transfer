@@ -113,11 +113,9 @@ pull request and again before packaging in a release.
 4. Click the extension → **Receive Session** → paste the package or load the file (+ enter the code if asked) → **Import Session**.
 5. The site tab opens/reloads authenticated. A verification report confirms the counts.
 
-## Roadmap (post-MVP)
+## Roadmap
 
-- Transport abstraction implementations (QR pairing, code relay, WebRTC).
-- `test-app/` fixture site + Playwright E2E across cookie/localStorage/IDB apps.
-- Merge-conflict field-level diffing.
+See [`docs/plans/2026-10-17-roadmap.md`](../docs/plans/2026-10-17-roadmap.md).
 
 ## Security
 

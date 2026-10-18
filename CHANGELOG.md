@@ -9,7 +9,12 @@ tag (release-platform stamps it into the built manifest), so the numbers below m
 - After a restore that passes verification, the popup asks once, ever, for a Chrome Web Store review ("Rate it" or
   "Not now"). Only a local flag remembers it was asked; nothing is sent anywhere.
 
+### Changed
+- The store listing description now links the threat model on GitHub.
+
 ### Fixed
+- The Ready screen no longer shows a green check when some data could not be read or nothing was found; it shows a
+  warning naming what is missing.
 - Replace no longer removes cookies of an unrelated subdomain, and now removes leftover partitioned cookies from their
   own partition.
 - The popup header said "AES-256-GCM · local only" even for the default plain package. It now reads "Move a logged-in
@@ -17,6 +22,8 @@ tag (release-platform stamps it into the built manifest), so the numbers below m
 - Receive keeps the pasted package and code after an error such as a wrong code, says plainly when the pasted text
   is not a package, and accepts a package up to one minute past expiry to allow for clock differences.
 - Popup hints are easier to read (lighter muted text, nothing below 11px) and keyboard focus now shows a visible ring.
+- Keyboard and screen readers: the package file button opens with Enter or Space, the package and code fields have labels, and
+  progress, results and errors are announced.
 
 ### Changed
 - Store screenshots are generated from the real popup (`e2e/store-shots.spec.ts`) and the promo tiles no longer claim
