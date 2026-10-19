@@ -60,8 +60,8 @@ facts:
     claim: "No servers unless you use the live transfer beta, no account, no analytics, no tracking. Copy and file transfer make no network requests."
     status: narrow
     sources: ["README.md:13-14", "PRIVACY.md:30-33", "CHROMEWEBSTORE.md:34,76"]
-    code: ["extension/package.json (dependencies: react, react-dom only)", "grep over extension/src at the pinned sha: no fetch( / XMLHttpRequest / WebSocket / sendBeacon / analytics SDK"]
-    note: "Fully local describes the extension. The user saves the package as a file (.stpkg) and moves it; what happens to that file afterwards is outside the extension. Use the policy wording, not 'never leaves your device'. The live transfer beta (build PR open) contacts a signalling Worker that sees IPs, user agents and SDP, never the package or code; re-check the code grep once it merges."
+    code: ["extension/package.json (dependencies: react, react-dom only)", "extension/src/core/signal-client.ts: the only fetch(, used only by live transfer (beta) to exchange SDP with the signalling Worker", "copy and file transfer: no fetch( / XMLHttpRequest / WebSocket / sendBeacon / analytics SDK in their code paths"]
+    note: "Fully local describes the extension. The user saves the package as a file (.stpkg) and moves it; what happens to that file afterwards is outside the extension. Use the policy wording, not 'never leaves your device'. The live transfer beta (build PR open) contacts a signalling Worker that sees IPs, user agents and SDP, never the package or code; re-check the code evidence once it merges."
 
   no_data_collected_by_developer:
     claim: "No session data is collected, received or logged by the developer."

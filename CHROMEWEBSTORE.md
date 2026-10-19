@@ -30,7 +30,7 @@ Chosen by the owner on 2026-10-17 so the title carries the words people search f
 ```markdown
 Move your login to another browser or profile: Session Transfer copies a logged-in website session (cookies, localStorage, sessionStorage, IndexedDB and Cache Storage) to another Chrome profile, Chrome browser or computer. Use it to transfer cookies between Chrome profiles, or to save a site's login as a Playwright storageState file for automated tests.
 
-No servers unless you use the live transfer beta, no account, no analytics. Copy and file transfer make no network requests. Privacy policy: https://ravitejakamalapuram.github.io/session-transfer.html
+No servers unless you use the live transfer beta, no account, no analytics. Copy and file transfer make no network requests. Live transfer pairs the two browsers through a signalling server that sees your IP address, browser user agent and connection details (SDP), never the session or the code. Privacy policy: https://ravitejakamalapuram.github.io/session-transfer.html
 
 HOW IT WORKS
 1. In the source browser, open the site, click the extension and press "Transfer Session".

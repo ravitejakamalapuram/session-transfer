@@ -134,6 +134,7 @@ export default function App() {
   const [receiveError, setReceiveError] = useState(false);
   const [liveSend, setLiveSend] = useState<LiveSendState | null>(null);
   const [liveStage, setLiveStage] = useState('');
+  const [readyNote, setReadyNote] = useState('');
 
   const restoreOpts = useRef<{ confirmOriginMismatch?: boolean; conflict?: ConflictStrategy }>({});
   const cleanup = useRef<(() => void) | null>(null);
@@ -179,7 +180,7 @@ export default function App() {
   }, [view, packageText, code, fileName]);
 
   useEffect(() => {
-    if (view === 'ready' && collected) saveReadyResult({ collected, saved });
+    if ((view === 'ready' || view === 'live-send') && collected) saveReadyResult({ collected, saved });
   }, [view, collected, saved]);
 
   const toError = (m: string, onRetry: (() => void) | null = null, fromReceive = false) => {
@@ -257,6 +258,7 @@ export default function App() {
   const startLiveSend = (secret: string, text: string) => {
     if (text.length > LIVE_MAX_CHARS) {
       setLiveSend(null);
+      setReadyNote('This session is too large for live transfer. Use the file instead.');
       setView('ready');
       return;
     }
@@ -414,6 +416,7 @@ export default function App() {
   const finishTransfer = () => {
     clearClipboard();
     clearReadyResult();
+    setReadyNote('');
     setCollected(null);
     setSaved(NOTHING_SAVED);
     setGuard(false);
@@ -516,6 +519,7 @@ export default function App() {
             onGoBack={() => setGuard(false)}
             onLeave={finishTransfer}
             onExpired={onExpired}
+            note={readyNote}
           />
         )}
 
