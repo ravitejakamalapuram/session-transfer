@@ -27,12 +27,16 @@ So a routine that "fetches crashes" has no source until the extension gets one.
    message and the stack, passed through the same scrub as `core/logger.ts`.
    It never holds cookie or storage values, origins or file contents.
 2. When an error is shown to the user, the error screen gets a
-   "Report this problem" link. It opens
-   `https://github.com/ravitejakamalapuram/session-transfer/issues/new` with
-   `labels=crash`, a title, and a body holding the entry, Chrome version and OS.
-   The user sees the text and chooses to submit it. The extension itself still
-   contacts no server, so the privacy promise holds; PRIVACY.md gets one line
-   saying the user may choose to send an error report to GitHub.
+   "Report this problem" button. It first shows the report text (the entry,
+   Chrome version and OS) in the popup; nothing leaves the device at this point.
+   Only after the user presses "Copy and open GitHub" does the extension copy
+   the text and open a blank
+   `https://github.com/ravitejakamalapuram/session-transfer/issues/new?labels=crash`
+   page, where the user pastes it and chooses whether to submit. Report
+   contents are never placed in the URL, so opening the page transmits nothing.
+   The extension itself still contacts no server, so the privacy promise holds;
+   PRIVACY.md gets one line saying the user may choose to send an error report
+   to GitHub.
 3. The body starts with a fingerprint line `fp: <error name>@<top stack frame>`
    so duplicates can be grouped.
 
