@@ -24,8 +24,15 @@ So a routine that "fetches crashes" has no source until the extension gets one.
    `unhandledrejection`, failed message handlers) append an entry to a ring
    buffer of the last 20 errors in `chrome.storage.local`. Each entry holds the
    version, the step (send, receive, restore, export), the error name, the
-   message and the stack, passed through the same scrub as `core/logger.ts`.
-   It never holds cookie or storage values, origins or file contents.
+   message and the stack. `core/logger.ts` only redacts metadata keys, so it is
+   not enough for this text. Before an entry is stored, displayed or copied, a
+   text-level sanitizer keeps only the error name from a fixed allowlist, cuts
+   the message to a short length, replaces URLs, origins, email addresses and
+   any long token-like string (20 or more letters, digits, `-`, `_` or `=`) with
+   `[redacted]`, and reduces each stack frame to the extension's own file name
+   and line number. It never holds cookie or storage values, origins or file
+   contents. The sanitizer gets unit tests with cookie-, token- and URL-shaped
+   input, and the report preview shows the already-sanitized text.
 2. When an error is shown to the user, the error screen gets a
    "Report this problem" button. It first shows the report text (the entry,
    Chrome version and OS) in the popup; nothing leaves the device at this point.
