@@ -412,7 +412,7 @@ export default function App() {
       : view === 'restored' && report
         ? `Verification: ${report.report.passed ? 'Passed' : 'Partial'}`
         : view === 'ready' && collected
-          ? (collectionWarning(collected.results) ?? '')
+          ? (collectionWarning(collected.results) ?? 'Collected. Ready to transfer.')
           : view === 'inspecting'
             ? 'Decrypting and validating'
             : view === 'restoring'
