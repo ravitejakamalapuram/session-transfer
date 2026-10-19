@@ -28,8 +28,10 @@ So a routine that "fetches crashes" has no source until the extension gets one.
    not enough for this text. Before an entry is stored, displayed or copied, a
    text-level sanitizer keeps only the error name from a fixed allowlist, cuts
    the message to a short length, replaces URLs, origins, email addresses and
-   any long token-like string (20 or more letters, digits, `-`, `_` or `=`) with
-   `[redacted]`, and reduces each stack frame to the extension's own file name
+   any long token-like string (20 or more letters, digits, `-`, `_` or `=`), and
+   any value assigned to a sensitive key (`cookie`, `session`, `token`, `auth`,
+   `authorization`, `secret`, `password`, `key`, in `key=value`, `key: value` or
+   JSON form, however short) with `[redacted]`, and reduces each stack frame to the extension's own file name
    and line number. It never holds cookie or storage values, origins or file
    contents. The sanitizer gets unit tests with cookie-, token- and URL-shaped
    input, and the report preview shows the already-sanitized text.
