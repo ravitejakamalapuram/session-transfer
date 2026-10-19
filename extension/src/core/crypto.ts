@@ -1,11 +1,11 @@
 // Encryption layer. Uses only Web Crypto primitives:
 //   - AES-256-GCM (authenticated encryption, package header bound via AAD)
-//   - embedded mode (default): a random 32-byte key per export, carried inside the package
-//   - code mode: PBKDF2-SHA256 derives the key from a separate human transfer code
+//   - code mode (default): PBKDF2-SHA256 derives the key from a separate human transfer code
+//   - embedded mode (v1.2.x): a random 32-byte key per export, carried inside the package
 //   - crypto.getRandomValues for key / salt / iv / transfer code / id
 // No custom cryptography.
 
-import { LEGACY_PBKDF2_ITERATIONS, MAX_PACKAGE_LIFETIME_MS, MAX_PBKDF2_ITERATIONS, PBKDF2_ITERATIONS } from './limits';
+import { CLOCK_SKEW_MS, LEGACY_PBKDF2_ITERATIONS, MAX_PACKAGE_LIFETIME_MS, MAX_PBKDF2_ITERATIONS, PBKDF2_ITERATIONS } from './limits';
 import { bytesToBase64, base64ToBytes, strToBytes, bytesToStr } from './encoding';
 import {
   EncryptedPackage,
@@ -100,15 +100,16 @@ function headerAad(h: PackageHeader): Uint8Array {
 }
 
 /**
- * Encrypts a session payload. Encryption is always on.
- *  - 'embedded' (default): random 32-byte AES key, stored base64 in the package `key` field.
- *  - 'code': a generated one-time code -> PBKDF2 -> key; the code travels on a second channel.
+ * Builds a session package.
+ *  - 'code' (default): a generated transfer code -> PBKDF2 -> key; the code travels on a second channel.
+ *  - 'none': plain, not encrypted (the "Skip the code" setting).
+ *  - 'embedded': random 32-byte AES key, stored base64 in the package `key` field (v1.2.x packages).
  * The v2 header (incl. expiresAt, origin, keyMode) is AES-GCM AAD.
  */
 export async function encryptPayload(
   payload: SessionPayload,
   ttlMs: number,
-  keyMode: KeyMode = 'none',
+  keyMode: KeyMode = 'code',
   now: number = Date.now(),
 ): Promise<EncryptResult> {
   const json = JSON.stringify(payload);
@@ -196,7 +197,7 @@ export function checkPackage(
   if (typeof pkg.expiresAt !== 'number' || typeof pkg.createdAt !== 'number') {
     throw new DecryptError('Package is incomplete or damaged.');
   }
-  if (now > pkg.expiresAt) throw new DecryptError('This transfer has expired.');
+  if (now > pkg.expiresAt + CLOCK_SKEW_MS) throw new DecryptError('This package has expired. Start a new transfer on the other browser.');
   if (pkg.expiresAt - pkg.createdAt > maxLifetimeMs) {
     throw new DecryptError('Package is invalid: its lifetime is longer than a transfer allows.');
   }

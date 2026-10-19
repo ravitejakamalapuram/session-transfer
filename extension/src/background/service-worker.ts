@@ -219,7 +219,12 @@ async function handleExportState(port: chrome.runtime.Port, extraDomains: string
 
 // ---------------------------------------------------------------- inspect
 function parsePackage(text: string): EncryptedPackage {
-  const pkg = JSON.parse(text) as EncryptedPackage;
+  let pkg: EncryptedPackage;
+  try {
+    pkg = JSON.parse(text) as EncryptedPackage;
+  } catch {
+    throw new Error("This isn't a Session Transfer package. Paste the whole text or load the .stpkg file you downloaded.");
+  }
   if (!pkg || pkg.format !== PACKAGE_FORMAT) throw new Error('Unrecognized package format.');
   return pkg;
 }
@@ -394,7 +399,7 @@ async function handleRestore(port: chrome.runtime.Port, req: Extract<OpRequest, 
 
   const passed = lines.every((l) => l.ok) && results.every((r) => r.status === 'success');
   logger.info('Session restored', { origin, passed, reloaded });
-  send(port, { type: 'restored', report: { lines, passed, results, reloaded } });
+  send(port, { type: 'restored', report: { lines, passed, results, reloaded }, tabId: tab.id });
 }
 
 /** success = everything written, partial = some, failed = nothing (when something was expected). */

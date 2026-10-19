@@ -8,6 +8,7 @@ import {
   MAX_PACKAGE_LIFETIME_MS,
   packageNeedsCode,
 } from './crypto';
+import { CLOCK_SKEW_MS } from './limits';
 import { EncryptedPackage, SessionPayload } from './types';
 import v1 from './fixtures/v1-package.json';
 
@@ -27,7 +28,7 @@ const payload = (origin = 'https://example.test'): SessionPayload => ({
 const rejects = (p: Promise<unknown>, re: RegExp) => assert.rejects(p, (e: Error) => re.test(e.message));
 const clone = (p: EncryptedPackage): EncryptedPackage => JSON.parse(JSON.stringify(p));
 
-describe('plain mode (default, no encryption)', () => {
+describe('plain mode (no encryption)', () => {
   it('round-trips with no code, no key and no encryption', async () => {
     const { pkg, code } = await encryptPayload(payload(), TTL, 'none', T0);
     assert.equal(code, null);
@@ -39,9 +40,11 @@ describe('plain mode (default, no encryption)', () => {
     assert.equal(out.state.localStorage[0][1], 'secret-value');
   });
 
-  it('is the default mode', async () => {
-    const { pkg } = await encryptPayload(payload(), TTL, undefined, T0);
-    assert.equal(pkg.keyMode, 'none');
+  it('is not the default: the default is code mode', async () => {
+    const { pkg, code } = await encryptPayload(payload(), TTL, undefined, T0);
+    assert.equal(pkg.keyMode, 'code');
+    assert.equal(pkg.alg, 'AES-256-GCM');
+    assert.ok(code);
   });
 
   it('refuses a payload whose origin differs from the package origin, and garbage', async () => {
@@ -134,16 +137,19 @@ describe('code mode', () => {
 
 describe('expiry, lifetime and version (checked before any decrypt)', () => {
   for (const mode of ['none', 'embedded', 'code'] as const) {
-    it(`${mode}: refused after expiresAt, accepted right before`, async () => {
+    it(`${mode}: refused after expiresAt plus clock skew, accepted right before`, async () => {
       const { pkg, code } = await encryptPayload(payload(), TTL, mode, T0);
-      await decryptPayload(pkg, code, { now: T0 + TTL });
-      await rejects(decryptPayload(pkg, code, { now: T0 + TTL + 1 }), /expired/);
+      await decryptPayload(pkg, code, { now: T0 + TTL + CLOCK_SKEW_MS });
+      await rejects(
+        decryptPayload(pkg, code, { now: T0 + TTL + CLOCK_SKEW_MS + 1 }),
+        /This package has expired\. Start a new transfer on the other browser\./,
+      );
     });
 
     if (mode !== 'none') it(`${mode}: expired is reported even when the package is also tampered`, async () => {
       const { pkg } = await encryptPayload(payload(), TTL, mode, T0);
       const bad = clone(pkg); bad.origin = 'https://evil.test'; bad.ciphertext = 'AAAA';
-      await rejects(decryptPayload(bad, 'WRONG-CODE-0000', { now: T0 + TTL + 1 }), /expired/);
+      await rejects(decryptPayload(bad, 'WRONG-CODE-0000', { now: T0 + TTL + CLOCK_SKEW_MS + 1 }), /expired/);
     });
 
     it(`${mode}: a lifetime above 5 min 30 s is refused`, async () => {
@@ -183,6 +189,6 @@ describe('version 1 packages stay readable', () => {
 
   it('v1 still needs the code, and is refused once expired', async () => {
     await rejects(decryptPayload(pkg, null, { now: pkg.createdAt + 60_000 }), /Enter the transfer code/);
-    await rejects(decryptPayload(pkg, v1.code, { now: pkg.expiresAt + 1 }), /expired/);
+    await rejects(decryptPayload(pkg, v1.code, { now: pkg.expiresAt + CLOCK_SKEW_MS + 1 }), /expired/);
   });
 });
