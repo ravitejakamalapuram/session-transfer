@@ -45,8 +45,11 @@ means an Edge-specific manifest (a build flavor), which this repo does not have 
 **Are you using remote code?** No, I am not using remote code. (All scripts are bundled into the
 package at build time, and the extension contacts no servers.)
 
-**Data usage**: select no data-collection checkboxes (the extension does not collect or transmit
-user data), then tick every certification checkbox.
+**Data usage**: tick **Authentication information** (cookies and site storage are read for the
+site the user selects, only when they click Transfer, and stored only in the package they
+download). Leave every other category unticked. This matches the Chrome Web Store disclosure in
+CHROMEWEBSTORE.md section 4: local-only handling is still declared, but nothing is sent to the
+developer or any third party. Then tick each certification checkbox, which matches PRIVACY.md.
 
 **Privacy Policy URL**: https://ravitejakamalapuram.github.io/session-transfer.html
 

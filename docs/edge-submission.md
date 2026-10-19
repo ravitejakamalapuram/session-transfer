@@ -22,7 +22,8 @@ Manual steps in Partner Center (Microsoft Edge program). All copy to paste is in
        Markets: leave **all markets**.
 3. [ ] **Properties**: category, website, support contact and mature content from the listing file.
 4. [ ] **Privacy**: single purpose, the four permission justifications, "No" to remote code, no
-       data-collection boxes plus all certification boxes, privacy policy URL.
+       "Authentication information" as the only data-collection box, all certification boxes,
+       privacy policy URL.
 5. [ ] **Store listings** → English (United States) → **Edit details**:
        - Description and search terms from the listing file. Skip the AI-generated description; it
          invents claims the facts file forbids.
