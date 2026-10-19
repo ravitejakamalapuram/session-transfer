@@ -14,7 +14,7 @@
       (copy from README "Permissions" table).
 
 ## Privacy
-- [x] No remote code, no analytics, no external network calls, no accounts.
+- [x] No remote code, no analytics, no accounts. No external network calls except the opt-in live transfer beta (signalling server and STUN; see PRIVACY.md).
 - [ ] Provide a **Privacy Policy URL** (data is processed locally, nothing collected).
 - [ ] Complete the **Data usage** disclosures: select "Does not collect user data".
 

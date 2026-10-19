@@ -1,7 +1,7 @@
 # Plan: live laptop-to-laptop transfer (WebRTC)
 
-Status: **parked**. Agreed direction from the 2026-10-05 design discussion; not scheduled.
-Pick it up only after steps 1 and 2 below ship and QA users ask for direct transfer.
+Status: **in progress (build PR open)**. Agreed direction from the 2026-10-05 design discussion;
+see docs/plans/2026-10-17-webrtc-transfer.md for the first slice.
 
 ## Goal
 

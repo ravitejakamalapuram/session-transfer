@@ -222,3 +222,5 @@ html, body {
 .more { font-size: 11px; color: var(--text-2); }
 .more summary { cursor: pointer; padding: 4px 0; }
 .more[open] summary { margin-bottom: 6px; }
+/* Live codes mix a lowercase room id with the uppercase secret, so no case transform. */
+.live-code { font-family: ui-monospace, monospace; font-size: 12px; word-break: break-all; }

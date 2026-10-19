@@ -27,14 +27,17 @@ const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 const CODE_GROUPS = 3;
 const CODE_GROUP_LEN = 4;
 
-/** Generates a one-time transfer code like "ABC7-K9P2-WXYZ". Not stored on disk. */
-export function generateTransferCode(): string {
-  const total = CODE_GROUPS * CODE_GROUP_LEN;
+/**
+ * Generates a one-time transfer code like "ABC7-K9P2-WXYZ". Not stored on disk.
+ * Live transfer asks for more groups, so the code also keys the channel check (~139 bits at 7).
+ */
+export function generateTransferCode(groupCount: number = CODE_GROUPS): string {
+  const total = groupCount * CODE_GROUP_LEN;
   const rnd = new Uint32Array(total);
   crypto.getRandomValues(rnd);
   const chars = Array.from(rnd, (n) => CODE_ALPHABET[n % CODE_ALPHABET.length]);
   const groups: string[] = [];
-  for (let i = 0; i < CODE_GROUPS; i++) {
+  for (let i = 0; i < groupCount; i++) {
     groups.push(chars.slice(i * CODE_GROUP_LEN, (i + 1) * CODE_GROUP_LEN).join(''));
   }
   return groups.join('-');
@@ -111,6 +114,7 @@ export async function encryptPayload(
   ttlMs: number,
   keyMode: KeyMode = 'code',
   now: number = Date.now(),
+  codeGroups: number = CODE_GROUPS,
 ): Promise<EncryptResult> {
   const json = JSON.stringify(payload);
   const iv = crypto.getRandomValues(new Uint8Array(12));
@@ -144,7 +148,7 @@ export async function encryptPayload(
     key = await crypto.subtle.importKey('raw', bs(raw), 'AES-GCM', false, ['encrypt']);
     extra.key = bytesToBase64(raw);
   } else {
-    code = generateTransferCode();
+    code = generateTransferCode(codeGroups);
     const salt = crypto.getRandomValues(new Uint8Array(16));
     key = await deriveKey(code, salt, PBKDF2_ITERATIONS);
     extra.kdf = 'PBKDF2-SHA256';

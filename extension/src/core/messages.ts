@@ -22,7 +22,8 @@ export type OpRequest =
   // A package over the 64 MiB port limit is streamed in `packageChunk` messages first; the
   // following inspect/restore then carries an empty `packageText`.
   | { type: 'packageChunk'; data: string }
-  | { type: 'collect'; requireCode?: boolean; extraDomains?: string[] }
+  // `live`: a longer transfer code, since it also keys the live transfer channel check.
+  | { type: 'collect'; requireCode?: boolean; extraDomains?: string[]; live?: boolean }
   | { type: 'exportState'; extraDomains?: string[] }
   | { type: 'inspect'; packageText: string; code?: string }
   | {
@@ -67,3 +68,17 @@ export interface DetectInfo {
   counts: Record<TransferComponent, number>;
   reason?: string;
 }
+
+/** Popup <-> offscreen document, live transfer (beta). */
+export const LIVE_PORT_NAME = 'session-transfer-live';
+
+export type LiveRequest =
+  | { type: 'send'; roomId: string; secret: string; packageText: string }
+  | { type: 'receive'; roomId: string; secret: string };
+
+export type LiveResponse =
+  | { type: 'status'; stage: 'waiting' | 'connecting' | 'sending' | 'receiving'; pct?: number }
+  | { type: 'sent' }
+  | { type: 'received'; packageText: string }
+  | { type: 'timeout' }
+  | { type: 'error'; message: string };

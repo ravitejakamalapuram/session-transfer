@@ -1,0 +1,21 @@
+name = "session-transfer-signal"
+main = "src/index.js"
+compatibility_date = "2026-09-01"
+workers_dev = true
+
+# No Workers Logs or traces: the Worker must keep no record of requests.
+[observability]
+enabled = false
+
+[[durable_objects.bindings]]
+name = "ROOMS"
+class_name = "Room"
+
+[[durable_objects.bindings]]
+name = "RATE_LIMITER"
+class_name = "RateLimiter"
+
+# SQLite-backed classes are required for Durable Objects on the free plan.
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Room", "RateLimiter"]

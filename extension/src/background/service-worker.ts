@@ -6,6 +6,7 @@ import { pageCollect, pageDetect, pageLocalStorage, pageRestore, pageVerify } fr
 import { CookieRestoreResult, collectCookies, countCookies, countMatchingCookies, getDestinationCookies, restoreCookies } from './cookie-manager';
 import { getActiveTab, originOf, reloadTab, resolveDestinationTab } from './tab-utils';
 import { checkPackage, decryptPayload, encryptPayload, packageNeedsCode } from '../core/crypto';
+import { LIVE_CODE_GROUPS } from '../core/live';
 import { LARGE_WARN_BYTES, MAX_PACKAGE_BYTES, TRANSFER_TTL_MS } from '../core/limits';
 import { logger } from '../core/logger';
 import { buildStorageState, parseExtraDomains } from '../core/storage-state';
@@ -100,7 +101,7 @@ function pageResultStatus(comp: TransferComponent, raw: any): TransferComponentR
   return { component: comp, status: raw.status, itemCount: count, error: raw.error };
 }
 
-async function handleCollect(port: chrome.runtime.Port, requireCode: boolean, extraDomains: string[]) {
+async function handleCollect(port: chrome.runtime.Port, requireCode: boolean, extraDomains: string[], live = false) {
   const tab = await getActiveTab();
   const origin = originOf(tab?.url);
   if (!tab || !origin || tab.id == null) {
@@ -165,7 +166,7 @@ async function handleCollect(port: chrome.runtime.Port, requireCode: boolean, ex
     unsupported: NON_TRANSFERABLE,
   };
 
-  const { pkg, code } = await encryptPayload(payload, TRANSFER_TTL_MS, requireCode ? 'code' : 'none');
+  const { pkg, code } = await encryptPayload(payload, TRANSFER_TTL_MS, requireCode || live ? 'code' : 'none', Date.now(), live ? LIVE_CODE_GROUPS : undefined);
   // Payload size recovered from the finished package (base64 is 4 chars per 3 bytes): no second stringify.
   const sizeBytes = Math.floor((pkg.ciphertext.length * 3) / 4);
   if (sizeBytes > MAX_PACKAGE_BYTES) {
@@ -435,7 +436,7 @@ chrome.runtime.onConnect.addListener((port) => {
       }
       switch (msg.type) {
         case 'detect': await handleDetect(port); break;
-        case 'collect': await handleCollect(port, msg.requireCode === true, parseExtraDomains((msg.extraDomains ?? []).join(' ')).domains); break;
+        case 'collect': await handleCollect(port, msg.requireCode === true, parseExtraDomains((msg.extraDomains ?? []).join(' ')).domains, msg.live === true); break;
         case 'exportState': await handleExportState(port, parseExtraDomains((msg.extraDomains ?? []).join(' ')).domains); break;
         case 'inspect': await handleInspect(port, msg); break;
         case 'restore': await handleRestore(port, msg); break;

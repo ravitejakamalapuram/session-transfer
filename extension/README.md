@@ -12,8 +12,9 @@ device to another with a near one-click experience.
   (PBKDF2-SHA256, 600,000 iterations). The setting **Skip the code (same
   computer only)** makes a plain package instead: anyone who sees it can use
   the login, so treat it like a password.
-- **Fully local** — no server, no account, no telemetry. Packages are only
-  accepted by the extension for 5 minutes.
+- **Local by default** — no account, no telemetry, and no server unless you use
+  the live transfer beta, whose signalling server never sees the session.
+  Packages are only accepted by the extension for 5 minutes.
 - **Honest** about what cannot be transferred (WebAuthn/passkeys, hardware credentials, TLS state).
 
 ## How it works

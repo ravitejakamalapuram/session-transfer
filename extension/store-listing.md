@@ -36,7 +36,7 @@ Reviewers will install and run the extension, so do this first:
 **Description (detailed):**
 > Move your login to another browser or profile: Session Transfer copies a logged-in website session (cookies, localStorage, sessionStorage, IndexedDB and Cache Storage) to another Chrome profile, Chrome browser or computer. Use it to transfer cookies between Chrome profiles, or to save a site's login as a Playwright storageState file for automated tests.
 >
-> No servers, no account, no analytics: the extension makes no network requests. Privacy policy: https://ravitejakamalapuram.github.io/session-transfer.html
+> No servers unless you use the live transfer beta, no account, no analytics. Copy and file transfer make no network requests. Privacy policy: https://ravitejakamalapuram.github.io/session-transfer.html
 >
 > HOW IT WORKS
 > 1. In the source browser, open the site, click the extension and press "Transfer Session".
@@ -97,6 +97,7 @@ The four screenshots are made from the real popup: `cd extension && npm run buil
 **Data usage disclosures:**
 - "Does NOT collect or transmit user data."
 - If any checkbox insists on data handling: all processing is local; "not used or transferred for purposes unrelated to the item's single purpose"; "not sold"; "not used for creditworthiness or lending".
+- If the build includes "Send to another computer (beta)", re-review these answers first: see "Live transfer beta: data disclosure" in `CHROMEWEBSTORE.md`.
 - Certify the compliance checkbox and save.
 
 ## STEP 5 — Submit for review

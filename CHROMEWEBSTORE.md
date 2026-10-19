@@ -30,7 +30,7 @@ Chosen by the owner on 2026-10-17 so the title carries the words people search f
 ```markdown
 Move your login to another browser or profile: Session Transfer copies a logged-in website session (cookies, localStorage, sessionStorage, IndexedDB and Cache Storage) to another Chrome profile, Chrome browser or computer. Use it to transfer cookies between Chrome profiles, or to save a site's login as a Playwright storageState file for automated tests.
 
-No servers, no account, no analytics: the extension makes no network requests. Privacy policy: https://ravitejakamalapuram.github.io/session-transfer.html
+No servers unless you use the live transfer beta, no account, no analytics. Copy and file transfer make no network requests. Privacy policy: https://ravitejakamalapuram.github.io/session-transfer.html
 
 HOW IT WORKS
 1. In the source browser, open the site, click the extension and press "Transfer Session".
@@ -82,7 +82,7 @@ Google review requires specific plain-English justification for each declared pe
   ⬇
   `.stpkg` file saved by the user
   ⬇
-  No network transmission — the extension contacts no servers
+  No network transmission for copy and file transfer. The live transfer beta sends only connection details (room id, SDP, IP addresses, user agents) to a signalling server; the package goes browser to browser, encrypted
 
 - **Data Handling Summary**:
   - **Authentication information (cookies, site storage)**: Collected: Yes, only for the site the user selects and only when the user clicks Transfer | Stored: Only inside the user-downloaded package (encrypted by default; plain only if the user turns on "Skip the code") | Purpose: Move the user's own logged-in session to another browser/profile. Never transmitted to the developer or any third party.
@@ -90,6 +90,16 @@ Google review requires specific plain-English justification for each declared pe
   - **Analytics & Telemetry**: Collected: No | Stored: No | Purpose: None collected.
 
 - **Privacy Policy URL**: `https://ravitejakamalapuram.github.io/session-transfer.html`
+
+### Live transfer beta: data disclosure
+
+"Send to another computer (beta)" sends IP addresses, user agents and WebRTC connection details (SDP) to the developer's signalling Worker on Cloudflare; the Worker keeps a room for at most 5 minutes and never receives the package or code. Before submitting a build that includes it, re-review these Privacy-tab answers (not yet changed here, because they are unverified against the dashboard):
+
+- "Does NOT collect or transmit user data" (`extension/store-listing.md`, Data usage disclosures) and "all processing is local".
+- Whether IP address counts under the dashboard's data categories (check the Location and Personally identifiable information definitions on the day).
+- The privacy policy URL must serve the updated PRIVACY.md first.
+
+The Authentication information and Website content answers stay "not transmitted to the developer".
 
 ---
 

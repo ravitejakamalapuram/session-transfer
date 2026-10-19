@@ -8,6 +8,8 @@ export default defineConfig({
   build: {
     target: 'es2022',
     sourcemap: false,
+    // The offscreen page is opened at runtime, so the manifest does not list it.
+    rollupOptions: { input: { offscreen: 'offscreen.html' } },
   },
   server: {
     cors: { origin: [/chrome-extension:\/\//] },

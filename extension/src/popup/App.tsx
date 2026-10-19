@@ -20,12 +20,16 @@ import {
   TransferStatus,
   VerificationReport,
 } from '../core/types';
-import { DetectInfo, OpResponse } from '../core/messages';
+import { DetectInfo, LiveResponse, OpResponse } from '../core/messages';
+import { formatLiveCode, generateRoomId, LIVE_MAX_CHARS, parseLiveCode } from '../core/live';
+import { SIGNAL_URL } from '../core/signal-client';
+import { runLive } from './live-port';
 
 type View =
   | 'loading'
   | 'home'
   | 'ready'
+  | 'live-send'
   | 'receive'
   | 'inspecting'
   | 'inspect-ready'
@@ -128,6 +132,8 @@ export default function App() {
   const [collecting, setCollecting] = useState(false);
   const [retry, setRetry] = useState<(() => void) | null>(null);
   const [receiveError, setReceiveError] = useState(false);
+  const [liveSend, setLiveSend] = useState<LiveSendState | null>(null);
+  const [liveStage, setLiveStage] = useState('');
 
   const restoreOpts = useRef<{ confirmOriginMismatch?: boolean; conflict?: ConflictStrategy }>({});
   const cleanup = useRef<(() => void) | null>(null);
@@ -185,7 +191,7 @@ export default function App() {
 
   // ---------------------------------------------------------------- collect
   // Progress is shown on the Home screen the user pressed the button on (no separate screen).
-  const startCollect = useCallback(() => {
+  const startCollect = useCallback((live = false) => {
     setProgress(Object.fromEntries(ALL_COMPONENTS.map((c) => [c, { status: 'pending' as TransferStatus }])));
     setCollecting(true);
     setView('home');
@@ -199,26 +205,28 @@ export default function App() {
     const fail = (message: string) => {
       cleanup.current?.();
       finish();
-      toError(message, startCollect);
+      toError(message, () => startCollect(live));
     };
     timer = setTimeout(() => fail(COLLECT_TIMEOUT_MESSAGE), COLLECT_TIMEOUT_MS);
-    cleanup.current = runOp({ type: 'collect', requireCode, extraDomains: parseExtraDomains(extraDomains).domains }, (msg: OpResponse) => {
+    cleanup.current = runOp({ type: 'collect', requireCode, live, extraDomains: parseExtraDomains(extraDomains).domains }, (msg: OpResponse) => {
       if (msg.type === 'progress') {
         setProgress((p) => ({ ...p, [msg.component]: { status: msg.status, itemCount: msg.itemCount } }));
       } else if (msg.type === 'ciphertextChunk') {
         chunks.push(msg.data);
       } else if (msg.type === 'collected') {
         finish();
-        setCollected({
+        const next: Collected = {
           pkg: { ...msg.pkg, ciphertext: chunks.join('') },
           code: msg.code,
           results: msg.results,
           unsupported: msg.unsupported,
           sizeBytes: msg.sizeBytes,
-        });
+        };
+        setCollected(next);
         setSaved(NOTHING_SAVED);
         setGuard(false);
-        setView('ready');
+        if (live && next.code) startLiveSend(next.code, JSON.stringify(next.pkg));
+        else setView('ready');
       } else if (msg.type === 'error') {
         fail(msg.message);
       }
@@ -226,10 +234,10 @@ export default function App() {
   }, [requireCode, extraDomains]);
 
   // ---------------------------------------------------------------- inspect
-  const startInspect = useCallback(() => {
+  const inspectWith = (text: string, codeText: string) => {
     setView('inspecting');
     cleanup.current?.();
-    cleanup.current = runOp({ type: 'inspect', packageText, code: code.trim() || undefined }, (msg) => {
+    cleanup.current = runOp({ type: 'inspect', packageText: text, code: codeText.trim() || undefined }, (msg) => {
       if (msg.type === 'inspected') {
         setSummary(msg.summary);
         setView('inspect-ready');
@@ -240,7 +248,52 @@ export default function App() {
         toError(msg.message, null, true);
       }
     });
-  }, [packageText, code]);
+  };
+  const startInspect = useCallback(() => inspectWith(packageText, code), [packageText, code]);
+
+  // ---------------------------------------------------------------- live transfer (beta)
+  // The secret half of the live code is the package's transfer code, so the file fallback
+  // on the Ready screen works with the same code.
+  const startLiveSend = (secret: string, text: string) => {
+    if (text.length > LIVE_MAX_CHARS) {
+      setLiveSend(null);
+      setView('ready');
+      return;
+    }
+    const liveCode = formatLiveCode(generateRoomId(), secret);
+    const { roomId } = parseLiveCode(liveCode)!;
+    setLiveSend({ code: liveCode, stage: 'Setting up the connection…' });
+    setView('live-send');
+    const update = (m: LiveResponse) => {
+      setLiveSend((s) => s && { ...s, ...liveSendUpdate(m) });
+    };
+    runLive({ type: 'send', roomId, secret, packageText: text }, update)
+      .then((stop) => (cleanup.current = stop))
+      .catch((e: Error) => update({ type: 'error', message: e.message }));
+  };
+
+  const startLiveReceive = (liveCode: string) => {
+    const parsed = parseLiveCode(liveCode);
+    if (!parsed) return;
+    setLiveStage('Connecting to the other computer…');
+    cleanup.current?.();
+    const fail = (message: string) => {
+      setLiveStage('');
+      toError(message, null, true);
+    };
+    runLive({ type: 'receive', ...parsed }, (m) => {
+      if (m.type === 'status') setLiveStage(m.stage === 'receiving' ? 'Receiving…' : 'Connecting to the other computer…');
+      else if (m.type === 'received') {
+        setLiveStage('');
+        setPackageText(m.packageText);
+        setCode(parsed.secret);
+        inspectWith(m.packageText, parsed.secret);
+      } else if (m.type === 'timeout') fail(LIVE_TIMEOUT_MESSAGE);
+      else if (m.type === 'error') fail(m.message);
+    })
+      .then((stop) => (cleanup.current = stop))
+      .catch((e: Error) => fail(e.message));
+  };
 
   // ---------------------------------------------------------------- restore
   const runRestore = useCallback(
@@ -431,7 +484,8 @@ export default function App() {
             }}
             collecting={collecting}
             progress={progress}
-            onTransfer={startCollect}
+            onTransfer={() => startCollect()}
+            onLiveSend={SIGNAL_URL ? () => startCollect(true) : undefined}
             extraDomains={extraDomains}
             setExtraDomains={setExtraDomains}
             onExportState={exportState}
@@ -465,6 +519,18 @@ export default function App() {
           />
         )}
 
+        {view === 'live-send' && liveSend && (
+          <LiveSend
+            state={liveSend}
+            onCopy={() => navigator.clipboard.writeText(liveSend.code).then(() => setLiveSend((s) => s && { ...s, copied: true }), () => undefined)}
+            onFallback={() => {
+              cleanup.current?.();
+              setView('ready');
+            }}
+            onDone={finishTransfer}
+          />
+        )}
+
         {view === 'receive' && (
           <Receive
             packageText={packageText}
@@ -476,6 +542,8 @@ export default function App() {
             onFile={onFile}
             onOpenTab={IS_RECEIVE_TAB ? undefined : openReceiveTab}
             onInspect={startInspect}
+            onLiveReceive={SIGNAL_URL ? startLiveReceive : undefined}
+            liveStage={liveStage}
             onBack={reset}
           />
         )}
@@ -541,7 +609,7 @@ export default function App() {
       </main>
 
       <footer className="footer">
-        <span className="lock">🔒 Local only · No server</span>
+        <span className="lock">{view === 'live-send' || liveStage ? '🔒 End-to-end encrypted' : '🔒 Local only · No server'}</span>
         <a className="footer-link" href={FEEDBACK_URL} target="_blank" rel="noopener noreferrer" data-testid="feedback-link">
           Rate or report a problem
         </a>
@@ -579,6 +647,7 @@ function Home({
   collecting,
   progress,
   onTransfer,
+  onLiveSend,
   extraDomains,
   setExtraDomains,
   onExportState,
@@ -592,6 +661,8 @@ function Home({
   collecting: boolean;
   progress: ProgressMap;
   onTransfer: () => void;
+  /** Set when a signalling server is configured. */
+  onLiveSend?: () => void;
   extraDomains: string;
   setExtraDomains: (v: string) => void;
   onExportState: () => void;
@@ -685,6 +756,17 @@ function Home({
       <details className="more" data-testid="more-options">
         <summary>More options</summary>
         <div className="gap-sm">
+          {onLiveSend && (
+            <>
+              <Button testid="live-send-button" variant="ghost" onClick={onLiveSend} disabled={blocked}>
+                Send to another computer (beta)
+              </Button>
+              <div className="hint">
+                Sends the session straight to Chrome on another computer, encrypted end to end. A small server pairs
+                the two browsers and never sees the session.
+              </div>
+            </>
+          )}
           <label className="hint" htmlFor="extra-domains">
             Also include cookies from other sites (for sign-in pages), e.g. accounts.example.com. Up to 5 host names.
           </label>
@@ -736,6 +818,8 @@ function Receive({
   onFile,
   onOpenTab,
   onInspect,
+  onLiveReceive,
+  liveStage,
   onBack,
 }: {
   packageText: string;
@@ -749,8 +833,12 @@ function Receive({
   /** Set in the popup: file loading moves to a full tab, where the picker can't close it. */
   onOpenTab?: () => void;
   onInspect: () => void;
+  /** Set when a signalling server is configured. */
+  onLiveReceive?: (liveCode: string) => void;
+  liveStage: string;
   onBack: () => void;
 }) {
+  const [liveCode, setLiveCode] = useState('');
   const hasPackage = packageText.trim().length > 20;
   const hasCode = code.trim().length >= 8;
   const showCode = codeNeeded || hasCode;
@@ -764,17 +852,44 @@ function Receive({
   // Route pasted content to the right field: people often paste the code into the
   // package box, or the package into the code box.
   const onPackageChange = (v: string) => {
-    if (CODE_PATTERN.test(v.trim())) setCode(v.trim());
+    if (onLiveReceive && parseLiveCode(v)) setLiveCode(v.trim());
+    else if (CODE_PATTERN.test(v.trim())) setCode(v.trim());
     else setPackageText(v);
   };
   const onCodeChange = (v: string) => {
     if (v.trim().startsWith('{')) setPackageText(v.trim());
+    else if (onLiveReceive && parseLiveCode(v)) setLiveCode(v.trim());
     else setCode(v);
   };
 
   return (
     <div className="gap fade-in">
       <div className="section-title">Receive session</div>
+
+      {onLiveReceive && (
+        <details className="more" data-testid="live-receive" open={!!liveCode || !!liveStage}>
+          <summary>Live code from another computer (beta)</summary>
+          <div className="gap-sm">
+            <input
+              className="input live-code"
+              placeholder="abc234-ABCD-…"
+              value={liveCode}
+              onChange={(e) => setLiveCode(e.target.value)}
+              data-testid="live-code-input"
+              aria-label="Live code"
+            />
+            <Button testid="live-connect-button" onClick={() => onLiveReceive(liveCode)} disabled={!parseLiveCode(liveCode) || !!liveStage}>
+              {liveStage ? (
+                <>
+                  <span className="spinner" /> {liveStage}
+                </>
+              ) : (
+                'Connect'
+              )}
+            </Button>
+          </div>
+        </details>
+      )}
 
       <div className="section-title" data-testid="receive-step-package">
         Package {hasPackage && <span className="step-check">✓</span>}
@@ -960,6 +1075,85 @@ function Restored({ data, onOpen, onDone }: { data: { report: VerificationReport
       <Button testid="restored-done-button" variant="ghost" onClick={onDone}>
         Done
       </Button>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------- live send (beta)
+interface LiveSendState {
+  code: string;
+  stage: string;
+  pct?: number;
+  copied?: boolean;
+  done?: boolean;
+  /** Set when the live path failed; the file fallback is offered. */
+  failed?: string;
+}
+
+const LIVE_TIMEOUT_MESSAGE =
+  "Couldn't connect the two computers. Some office networks block direct connections. Use the file transfer instead: it works with the same code.";
+
+function liveSendUpdate(m: LiveResponse): Partial<LiveSendState> {
+  switch (m.type) {
+    case 'status':
+      return {
+        stage:
+          m.stage === 'waiting'
+            ? 'Waiting for the other computer. Keep this browser open.'
+            : m.stage === 'connecting'
+              ? 'Connecting…'
+              : `Sending… ${m.pct ?? 0}%`,
+      };
+    case 'sent':
+      return { stage: 'Sent. Finish on the other computer.', done: true };
+    case 'timeout':
+      return { failed: LIVE_TIMEOUT_MESSAGE };
+    case 'error':
+      return { failed: m.message };
+    default:
+      return {};
+  }
+}
+
+function LiveSend({ state, onCopy, onFallback, onDone }: { state: LiveSendState; onCopy: () => void; onFallback: () => void; onDone: () => void }) {
+  return (
+    <div className="gap fade-in" data-testid="live-send">
+      <div className="section-title">Send to another computer (beta)</div>
+      <div className="hint">
+        On the other computer, open Session Transfer, choose Receive Session and paste this live code. Send it through
+        a channel you trust; anyone with it can take the login.
+      </div>
+      <div className="step-code live-code" data-testid="live-code">
+        {state.code}
+      </div>
+      <Button testid="live-copy-button" variant="ghost" onClick={onCopy}>
+        {state.copied ? 'Copied ✓' : 'Copy live code'}
+      </Button>
+      {state.failed ? (
+        <>
+          <div className="callout warn" data-testid="live-failed" role="alert">
+            {state.failed}
+          </div>
+          <Button testid="live-fallback-button" onClick={onFallback}>
+            Use the file instead
+          </Button>
+        </>
+      ) : (
+        <div className="callout info" data-testid="live-status" role="status" aria-live="polite">
+          {!state.done && <span className="spinner" />} {state.stage}
+        </div>
+      )}
+      {state.done ? (
+        <Button testid="live-done-button" onClick={onDone}>
+          Done
+        </Button>
+      ) : (
+        !state.failed && (
+          <Button testid="live-fallback-button" variant="ghost" onClick={onFallback}>
+            Use the file instead
+          </Button>
+        )
+      )}
     </div>
   );
 }
