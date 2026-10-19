@@ -22,6 +22,8 @@ tag (release-platform stamps it into the built manifest), so the numbers below m
   progress, results and errors are announced.
 
 ### Added
+- After a restore that passes verification, the popup asks once, ever, for a Chrome Web Store review ("Rate it" or
+  "Not now"). Only a local flag remembers it was asked; nothing is sent anywhere.
 - A local welcome page opens once after the first install (not on updates) with the three transfer steps, how to pin
   the icon and the 5-minute package window.
 
