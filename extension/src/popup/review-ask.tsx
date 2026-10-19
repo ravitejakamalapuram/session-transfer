@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 // After a verified restore, ask once ever for a store review. Only a local flag in
 // chrome.storage.local records that it was asked: no tracking, no network.
@@ -29,8 +29,16 @@ export async function claimReviewAsk(area: LocalArea = local(), lock: Lock = web
 
 export function ReviewAsk({ url, area }: { url: string; area?: LocalArea }) {
   const [show, setShow] = useState(false);
+  // StrictMode runs this effect twice in development; reuse the first claim so the second
+  // setup does not see the flag it just set and hide the prompt.
+  const claim = useRef<{ area?: LocalArea; result: Promise<boolean> }>();
   useEffect(() => {
-    claimReviewAsk(area).then(setShow);
+    let live = true;
+    if (!claim.current || claim.current.area !== area) claim.current = { area, result: claimReviewAsk(area) };
+    claim.current.result.then((v) => live && setShow(v));
+    return () => {
+      live = false;
+    };
   }, [area]);
   if (!show) return null;
   return (
