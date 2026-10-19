@@ -5,6 +5,11 @@ tag (release-platform stamps it into the built manifest), so the numbers below m
 
 ## [Unreleased]
 
+### Added
+- **Send to another computer (beta)**, under More options: sends the encrypted package straight to Chrome on another
+  computer over WebRTC, paired by a small signalling server that never sees the package or code. Hidden until the
+  server is deployed. If the computers cannot connect, the file flow works with the same code.
+
 ### Fixed
 - Replace no longer removes cookies of an unrelated subdomain, and now removes leftover partitioned cookies from their
   own partition.
