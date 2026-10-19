@@ -13,7 +13,7 @@ import {
   timeAgo,
 } from './components/ui';
 import { ReviewAsk } from './review-ask';
-import { clearReadyResult, Collected, loadReadyResult, needsDoneGuard, Ready, saveReadyResult, Saved } from './ready';
+import { clearReadyResult, Collected, collectionWarning, loadReadyResult, needsDoneGuard, Ready, saveReadyResult, Saved } from './ready';
 import {
   ConflictStrategy,
   PayloadSummary,
@@ -404,9 +404,27 @@ export default function App() {
     setView('receive');
   };
 
+  // One live region stays mounted, so screen readers announce each new message (a region that
+  // mounts with its text already inside is often not read).
+  const announcement =
+    view === 'error'
+      ? errorMsg
+      : view === 'restored' && report
+        ? `Verification: ${report.report.passed ? 'Passed' : 'Partial'}`
+        : view === 'ready' && collected
+          ? (collectionWarning(collected.results) ?? '')
+          : view === 'inspecting'
+            ? 'Decrypting and validating'
+            : view === 'restoring'
+              ? 'Restoring and verifying'
+              : '';
+
   // ================================================================ render
   return (
     <div className="app">
+      <div className="sr-only" aria-live="polite" data-testid="announcer">
+        {announcement}
+      </div>
       <header className="header">
         <img className="logo" src={LOGO} alt="" />
         <div>
@@ -526,7 +544,7 @@ export default function App() {
         {view === 'error' && (
           <div className="gap fade-in">
             <div className="big-check warn">✗</div>
-            <div className="callout danger" aria-live="polite" data-testid="error-message">
+            <div className="callout danger" data-testid="error-message">
               {errorMsg}
             </div>
             {retry && (
@@ -568,7 +586,7 @@ function Loading({ label }: { label?: string }) {
   return (
     <div className="center fade-in" style={{ marginTop: 40 }}>
       <span className="spinner" style={{ width: 22, height: 22 }} />
-      <div className="hint" aria-live="polite" dangerouslySetInnerHTML={{ __html: label ?? 'Reading active tab…' }} />
+      <div className="hint" dangerouslySetInnerHTML={{ __html: label ?? 'Reading active tab…' }} />
     </div>
   );
 }
@@ -960,7 +978,7 @@ function Restored({ data, onOpen, onDone }: { data: { report: VerificationReport
         ))}
       </div>
 
-      <div className={`callout ${report.passed ? 'ok' : 'warn'}`} aria-live="polite" data-testid="verification-status">
+      <div className={`callout ${report.passed ? 'ok' : 'warn'}`} data-testid="verification-status">
         Verification: {report.passed ? 'Passed' : 'Partial'} · {report.reloaded ? 'page reloaded' : 'reload manually'}
       </div>
 
