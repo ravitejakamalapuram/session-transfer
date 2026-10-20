@@ -53,7 +53,13 @@ function channel(dc: RTCDataChannel): LiveChannel {
           ? Promise.reject(new Error('The connection closed before the transfer finished.'))
           : new Promise((ok, fail) => waiters.push({ ok, fail })),
     drain: () =>
-      dc.bufferedAmount < HIGH_WATER ? Promise.resolve() : new Promise((r) => dc.addEventListener('bufferedamountlow', () => r(), { once: true })),
+      dc.bufferedAmount < HIGH_WATER
+        ? Promise.resolve()
+        : new Promise((ok, fail) => {
+            if (closed) return fail(new Error('The connection closed before the transfer finished.'));
+            dc.addEventListener('bufferedamountlow', () => ok(), { once: true });
+            dc.addEventListener('close', () => fail(new Error('The connection closed before the transfer finished.')), { once: true });
+          }),
   };
 }
 
