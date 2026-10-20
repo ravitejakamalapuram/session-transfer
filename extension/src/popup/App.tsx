@@ -139,6 +139,12 @@ export default function App() {
 
   const restoreOpts = useRef<{ confirmOriginMismatch?: boolean; conflict?: ConflictStrategy }>({});
   const cleanup = useRef<(() => void) | null>(null);
+  // Bumped whenever a live transfer starts or the user leaves one, so a stale one cannot touch the UI.
+  const liveAttempt = useRef(0);
+  const endLive = () => {
+    liveAttempt.current++;
+    setLiveStage('');
+  };
 
   useEffect(() => {
     let stop: (() => void) | undefined;
@@ -267,24 +273,28 @@ export default function App() {
     const { roomId } = parseLiveCode(liveCode)!;
     setLiveSend({ code: liveCode, stage: 'Setting up the connection…' });
     setView('live-send');
+    const attempt = ++liveAttempt.current;
     const update = (m: LiveResponse) => {
-      setLiveSend((s) => s && { ...s, ...liveSendUpdate(m) });
+      if (attempt === liveAttempt.current) setLiveSend((s) => s && { ...s, ...liveSendUpdate(m) });
     };
     runLive({ type: 'send', roomId, secret, packageText: text }, update)
-      .then((stop) => (cleanup.current = stop))
+      .then((stop) => (attempt === liveAttempt.current ? (cleanup.current = stop) : stop()))
       .catch((e: Error) => update({ type: 'error', message: e.message }));
   };
 
   const startLiveReceive = (liveCode: string) => {
     const parsed = parseLiveCode(liveCode);
     if (!parsed) return;
-    setLiveStage('Connecting to the other computer…');
     cleanup.current?.();
+    const attempt = ++liveAttempt.current;
+    setLiveStage('Connecting to the other computer…');
     const fail = (message: string) => {
+      if (attempt !== liveAttempt.current) return;
       setLiveStage('');
       toError(message, null, true);
     };
     runLive({ type: 'receive', ...parsed }, (m) => {
+      if (attempt !== liveAttempt.current) return;
       if (m.type === 'status') setLiveStage(m.stage === 'receiving' ? 'Receiving…' : 'Connecting to the other computer…');
       else if (m.type === 'received') {
         setLiveStage('');
@@ -294,7 +304,7 @@ export default function App() {
       } else if (m.type === 'timeout') fail(LIVE_TIMEOUT_MESSAGE);
       else if (m.type === 'error') fail(m.message);
     })
-      .then((stop) => (cleanup.current = stop))
+      .then((stop) => (attempt === liveAttempt.current ? (cleanup.current = stop) : stop()))
       .catch((e: Error) => fail(e.message));
   };
 
@@ -437,6 +447,7 @@ export default function App() {
 
   const reset = () => {
     cleanup.current?.();
+    endLive();
     clearDraft();
     if (IS_RECEIVE_TAB) {
       window.close();
@@ -453,6 +464,7 @@ export default function App() {
   // A receive error goes back to the Receive screen with the pasted package and code kept.
   const backToReceive = () => {
     cleanup.current?.();
+    endLive();
     setSummary(null);
     setMismatch(null);
     setConflict(null);
