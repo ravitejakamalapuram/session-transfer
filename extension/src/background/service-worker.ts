@@ -5,6 +5,7 @@
 import { pageCollect, pageDetect, pageLocalStorage, pageRestore, pageVerify } from './injected';
 import { CookieRestoreResult, collectCookies, countCookies, countMatchingCookies, getDestinationCookies, restoreCookies } from './cookie-manager';
 import { getActiveTab, originOf, reloadTab, resolveDestinationTab } from './tab-utils';
+import { openWelcomeOnInstall } from './welcome';
 import { checkPackage, decryptPayload, encryptPayload, packageNeedsCode } from '../core/crypto';
 import { LIVE_CODE_GROUPS } from '../core/live';
 import { LARGE_WARN_BYTES, MAX_PACKAGE_BYTES, TRANSFER_TTL_MS } from '../core/limits';
@@ -449,7 +450,8 @@ chrome.runtime.onConnect.addListener((port) => {
 });
 
 // v1.2.x kept encrypted destination backups here; they are gone, so remove any left behind.
-chrome.runtime.onInstalled.addListener(async () => {
+chrome.runtime.onInstalled.addListener(async (details) => {
+  openWelcomeOnInstall(details);
   const all = await chrome.storage.local.get(null).catch(() => ({}));
   const old = Object.keys(all).filter((k) => k.startsWith('backup:'));
   if (old.length) await chrome.storage.local.remove(old).catch(() => undefined);
