@@ -74,7 +74,9 @@ export const LIVE_PORT_NAME = 'session-transfer-live';
 
 export type LiveRequest =
   | { type: 'send'; roomId: string; secret: string; packageText: string }
-  | { type: 'receive'; roomId: string; secret: string };
+  | { type: 'receive'; roomId: string; secret: string }
+  /** The user chose the file instead: stop the transfer and close the connection. */
+  | { type: 'cancel' };
 
 export type LiveResponse =
   | { type: 'status'; stage: 'waiting' | 'connecting' | 'sending' | 'receiving'; pct?: number }

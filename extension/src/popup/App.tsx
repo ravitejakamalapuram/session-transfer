@@ -141,8 +141,11 @@ export default function App() {
   const cleanup = useRef<(() => void) | null>(null);
   // Bumped whenever a live transfer starts or the user leaves one, so a stale one cannot touch the UI.
   const liveAttempt = useRef(0);
+  const liveCancel = useRef<(() => void) | null>(null);
   const endLive = () => {
     liveAttempt.current++;
+    liveCancel.current?.();
+    liveCancel.current = null;
     setLiveStage('');
   };
 
@@ -278,7 +281,11 @@ export default function App() {
       if (attempt === liveAttempt.current) setLiveSend((s) => s && { ...s, ...liveSendUpdate(m) });
     };
     runLive({ type: 'send', roomId, secret, packageText: text }, update, () => attempt === liveAttempt.current)
-      .then((stop) => (attempt === liveAttempt.current ? (cleanup.current = stop) : stop()))
+      .then((stop) => {
+        if (attempt !== liveAttempt.current) return stop(true);
+        cleanup.current = stop;
+        liveCancel.current = () => stop(true);
+      })
       .catch((e: Error) => update({ type: 'error', message: e.message }));
   };
 
@@ -304,7 +311,11 @@ export default function App() {
       } else if (m.type === 'timeout') fail(LIVE_TIMEOUT_MESSAGE);
       else if (m.type === 'error') fail(m.message);
     }, () => attempt === liveAttempt.current)
-      .then((stop) => (attempt === liveAttempt.current ? (cleanup.current = stop) : stop()))
+      .then((stop) => {
+        if (attempt !== liveAttempt.current) return stop(true);
+        cleanup.current = stop;
+        liveCancel.current = () => stop(true);
+      })
       .catch((e: Error) => fail(e.message));
   };
 
@@ -446,8 +457,8 @@ export default function App() {
   }, []);
 
   const reset = () => {
-    cleanup.current?.();
     endLive();
+    cleanup.current?.();
     clearDraft();
     if (IS_RECEIVE_TAB) {
       window.close();
@@ -463,8 +474,8 @@ export default function App() {
 
   // A receive error goes back to the Receive screen with the pasted package and code kept.
   const backToReceive = () => {
-    cleanup.current?.();
     endLive();
+    cleanup.current?.();
     setSummary(null);
     setMismatch(null);
     setConflict(null);

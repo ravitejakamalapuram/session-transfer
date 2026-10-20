@@ -57,8 +57,9 @@ function channel(dc: RTCDataChannel): LiveChannel {
   };
 }
 
-async function runSend(req: Extract<LiveRequest, { type: 'send' }>, post: (m: LiveResponse) => void) {
+async function runSend(req: Extract<LiveRequest, { type: 'send' }>, post: (m: LiveResponse) => void, abort: AbortSignal) {
   const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+  abort.addEventListener('abort', () => pc.close());
   try {
     const dc = pc.createDataChannel('package', { ordered: true });
     await pc.setLocalDescription(await pc.createOffer());
@@ -67,7 +68,8 @@ async function runSend(req: Extract<LiveRequest, { type: 'send' }>, post: (m: Li
     const signal = new SignalClient(req.roomId);
     await signal.put('offer', offerSdp);
     post({ type: 'status', stage: 'waiting' });
-    const answerSdp = await signal.wait('answer', Date.now() + LIVE_WAIT_MS);
+    const answerSdp = await signal.wait('answer', Date.now() + LIVE_WAIT_MS, abort);
+    if (abort.aborted) return;
     if (!answerSdp) return post({ type: 'timeout' });
     post({ type: 'status', stage: 'connecting' });
     await pc.setRemoteDescription({ type: 'answer', sdp: answerSdp });
@@ -86,14 +88,16 @@ async function runSend(req: Extract<LiveRequest, { type: 'send' }>, post: (m: Li
   }
 }
 
-async function runReceive(req: Extract<LiveRequest, { type: 'receive' }>, post: (m: LiveResponse) => void) {
+async function runReceive(req: Extract<LiveRequest, { type: 'receive' }>, post: (m: LiveResponse) => void, abort: AbortSignal) {
   const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+  abort.addEventListener('abort', () => pc.close());
   try {
     const dcPromise = new Promise<RTCDataChannel>((r) => (pc.ondatachannel = (e) => r(e.channel)));
     const signal = new SignalClient(req.roomId);
     post({ type: 'status', stage: 'connecting' });
     // The sender may still be gathering candidates when the code arrives, so wait briefly.
-    const offerSdp = await signal.wait('offer', Date.now() + 15_000);
+    const offerSdp = await signal.wait('offer', Date.now() + 15_000, abort);
+    if (abort.aborted) return;
     if (!offerSdp) throw new Error('No transfer is waiting for this code. Start a new one on the other computer.');
     await pc.setRemoteDescription({ type: 'offer', sdp: offerSdp });
     await pc.setLocalDescription(await pc.createAnswer());
@@ -125,8 +129,10 @@ chrome.runtime.onConnect.addListener((port) => {
   port.onDisconnect.addListener(() => (open = false));
   // The sender keeps going after the popup closes; it just stops reporting.
   const post = (m: LiveResponse) => open && port.postMessage(m);
+  const abort = new AbortController();
   port.onMessage.addListener((req: LiveRequest) => {
-    const run = req.type === 'send' ? runSend(req, post) : runReceive(req, post);
-    run.catch((e: Error) => post({ type: 'error', message: e.message }));
+    if (req.type === 'cancel') return abort.abort();
+    const run = req.type === 'send' ? runSend(req, post, abort.signal) : runReceive(req, post, abort.signal);
+    run.catch((e: Error) => abort.signal.aborted || post({ type: 'error', message: e.message }));
   });
 });
