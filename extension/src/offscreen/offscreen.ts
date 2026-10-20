@@ -34,32 +34,45 @@ function opened(dc: RTCDataChannel, ms: number): Promise<void> {
   });
 }
 
-function channel(dc: RTCDataChannel): LiveChannel {
+function channel(dc: RTCDataChannel, abort: AbortSignal): LiveChannel {
+  const closedError = () => new Error('The connection closed before the transfer finished.');
   const queue: string[] = [];
   const waiters: Array<{ ok: (s: string) => void; fail: (e: Error) => void }> = [];
+  const draining: Array<(e: Error) => void> = [];
   let closed = false;
+  // Cancelling closes the peer connection, which does not reliably fire the channel's close event,
+  // so cancellation settles pending reads and drains itself.
+  const shut = () => {
+    if (closed) return;
+    closed = true;
+    for (const w of waiters.splice(0)) w.fail(closedError());
+    for (const fail of draining.splice(0)) fail(closedError());
+  };
   dc.bufferedAmountLowThreshold = HIGH_WATER / 2;
   dc.onmessage = (e) => (waiters.length ? waiters.shift()!.ok(String(e.data)) : queue.push(String(e.data)));
-  dc.onclose = () => {
-    closed = true;
-    for (const w of waiters.splice(0)) w.fail(new Error('The connection closed before the transfer finished.'));
-  };
+  dc.onclose = shut;
+  abort.addEventListener('abort', shut, { once: true });
+  if (abort.aborted) shut();
   return {
     send: (s) => dc.send(s),
     next: () =>
       queue.length
         ? Promise.resolve(queue.shift()!)
         : closed
-          ? Promise.reject(new Error('The connection closed before the transfer finished.'))
+          ? Promise.reject(closedError())
           : new Promise((ok, fail) => waiters.push({ ok, fail })),
-    drain: () =>
-      dc.bufferedAmount < HIGH_WATER
-        ? Promise.resolve()
-        : new Promise((ok, fail) => {
-            if (closed) return fail(new Error('The connection closed before the transfer finished.'));
-            dc.addEventListener('bufferedamountlow', () => ok(), { once: true });
-            dc.addEventListener('close', () => fail(new Error('The connection closed before the transfer finished.')), { once: true });
-          }),
+    drain: () => {
+      if (closed) return Promise.reject(closedError());
+      if (dc.bufferedAmount < HIGH_WATER) return Promise.resolve();
+      return new Promise<void>((ok, fail) => {
+        const onLow = () => {
+          draining.splice(draining.indexOf(fail), 1);
+          ok();
+        };
+        draining.push(fail);
+        dc.addEventListener('bufferedamountlow', onLow, { once: true });
+      });
+    },
   };
 }
 
@@ -85,7 +98,7 @@ async function runSend(req: Extract<LiveRequest, { type: 'send' }>, post: (m: Li
       return post({ type: 'timeout' });
     }
     post({ type: 'status', stage: 'sending', pct: 0 });
-    await sendPackage(channel(dc), { role: 'sender', roomId: req.roomId, secret: req.secret, offerSdp, answerSdp }, req.packageText, (n, total) =>
+    await sendPackage(channel(dc, abort), { role: 'sender', roomId: req.roomId, secret: req.secret, offerSdp, answerSdp }, req.packageText, (n, total) =>
       post({ type: 'status', stage: 'sending', pct: Math.round((n / total) * 100) }),
     );
     post({ type: 'sent' });
@@ -115,7 +128,7 @@ async function runReceive(req: Extract<LiveRequest, { type: 'receive' }>, post: 
       new Promise<never>((_, no) => setTimeout(() => no(new Error('timeout')), CONNECT_MS)),
     ]).catch(() => null);
     if (!dc) return post({ type: 'timeout' });
-    const ch = channel(dc);
+    const ch = channel(dc, abort);
     try {
       await opened(dc, CONNECT_MS);
     } catch {
