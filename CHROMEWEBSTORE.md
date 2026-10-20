@@ -39,7 +39,7 @@ HOW IT WORKS
 
 PRIVACY AND LIMITS
 • Encrypted by default with AES-256-GCM, using a key derived from a transfer code you send on another channel (PBKDF2-SHA256, 600,000 iterations). "Skip the code (same computer only)" makes a plain package instead; treat that like a password.
-• The extension refuses packages older than 5 minutes.
+• Packages expire 5 minutes after export. The receiver allows up to 1 extra minute for clock differences between computers.
 • Encrypted packages restore only into the website origin they were exported from (the origin is bound as AEAD authenticated data). A "Skip the code" package has no tamper detection; the extension still checks its origin before restoring.
 • If the destination already has a session, you choose Replace, Merge or Cancel; nothing is overwritten silently.
 • Passkeys/WebAuthn, hardware-backed credentials and TLS-bound state cannot be transferred, and the popup says so. Some sites tie a session to a device and may still ask you to sign in.
@@ -53,7 +53,7 @@ IDEAL FOR
 • Switching to a new computer or Chrome browser.
 • QA teams reproducing logged-in states.
 
-The full capability table and threat model are in the GitHub repository.
+Threat model (what the extension protects against and what it does not): https://github.com/ravitejakamalapuram/session-transfer/blob/main/extension/docs/threat-model.md
 ```
 
 ---

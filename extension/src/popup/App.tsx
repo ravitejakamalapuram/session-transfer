@@ -12,7 +12,8 @@ import {
   StatusIcon,
   timeAgo,
 } from './components/ui';
-import { clearReadyResult, Collected, loadReadyResult, needsDoneGuard, Ready, saveReadyResult, Saved } from './ready';
+import { ReviewAsk } from './review-ask';
+import { clearReadyResult, Collected, collectionWarning, loadReadyResult, needsDoneGuard, Ready, saveReadyResult, Saved } from './ready';
 import {
   ConflictStrategy,
   PayloadSummary,
@@ -403,9 +404,27 @@ export default function App() {
     setView('receive');
   };
 
+  // One live region stays mounted, so screen readers announce each new message (a region that
+  // mounts with its text already inside is often not read).
+  const announcement =
+    view === 'error'
+      ? errorMsg
+      : view === 'restored' && report
+        ? `Verification: ${report.report.passed ? 'Passed' : 'Partial'}`
+        : view === 'ready' && collected
+          ? (collectionWarning(collected.results) ?? 'Collected. Ready to transfer.')
+          : view === 'inspecting'
+            ? 'Decrypting and validating'
+            : view === 'restoring'
+              ? 'Restoring and verifying'
+              : '';
+
   // ================================================================ render
   return (
     <div className="app">
+      <div className="sr-only" aria-live="polite" data-testid="announcer">
+        {announcement}
+      </div>
       <header className="header">
         <img className="logo" src={LOGO} alt="" />
         <div>
@@ -648,7 +667,7 @@ function Home({
         )}
       </Button>
       {collecting ? (
-        <div className="rows" data-testid="collect-progress">
+        <div className="rows" aria-live="polite" data-testid="collect-progress">
           {ALL_COMPONENTS.map((c) => (
             <ComponentRow
               key={c}
@@ -751,6 +770,7 @@ function Receive({
   onInspect: () => void;
   onBack: () => void;
 }) {
+  const fileInput = useRef<HTMLInputElement>(null);
   const hasPackage = packageText.trim().length > 20;
   const hasCode = code.trim().length >= 8;
   const showCode = codeNeeded || hasCode;
@@ -784,9 +804,21 @@ function Receive({
           {fileName ? `📄 ${fileName}` : '📁 Load package file (.stpkg)'}
         </button>
       ) : (
-        <label className="btn ghost" style={{ cursor: 'pointer' }} data-testid="load-file-label">
+        // The input is hidden, so the label takes keyboard focus and opens the picker itself.
+        <label
+          className="btn ghost"
+          style={{ cursor: 'pointer' }}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key !== 'Enter' && e.key !== ' ') return;
+            e.preventDefault();
+            fileInput.current?.click();
+          }}
+          data-testid="load-file-label"
+        >
           {fileName ? `📄 ${fileName}` : '📁 Load package file (.stpkg)'}
-          <input type="file" accept=".stpkg,.json,application/json" style={{ display: 'none' }} onChange={onFile} data-testid="package-file-input" />
+          <input ref={fileInput} type="file" accept=".stpkg,.json,application/json" style={{ display: 'none' }} onChange={onFile} data-testid="package-file-input" />
         </label>
       )}
 
@@ -799,6 +831,7 @@ function Receive({
           className="textarea"
           rows={4}
           placeholder="…or paste the package here"
+          aria-label="Package"
           value={packageText}
           onChange={(e) => onPackageChange(e.target.value)}
           data-testid="package-textarea"
@@ -813,6 +846,7 @@ function Receive({
           <input
             className="input code-input"
             placeholder="ABC7-K9P2-WXYZ"
+            aria-label="Transfer code"
             value={code}
             onChange={(e) => onCodeChange(e.target.value)}
             data-testid="code-input"
@@ -947,6 +981,8 @@ function Restored({ data, onOpen, onDone }: { data: { report: VerificationReport
       <div className={`callout ${report.passed ? 'ok' : 'warn'}`} data-testid="verification-status">
         Verification: {report.passed ? 'Passed' : 'Partial'} · {report.reloaded ? 'page reloaded' : 'reload manually'}
       </div>
+
+      {report.passed && <ReviewAsk url={FEEDBACK_URL} />}
 
       <div className="callout warn">
         Some state can never be transferred (WebAuthn / passkeys, hardware credentials). You may still need to verify
