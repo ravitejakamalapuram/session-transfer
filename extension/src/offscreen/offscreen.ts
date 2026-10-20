@@ -150,7 +150,10 @@ chrome.runtime.onConnect.addListener((port) => {
   const post = (m: LiveResponse) => open && port.postMessage(m);
   const abort = new AbortController();
   port.onMessage.addListener((req: LiveRequest) => {
-    if (req.type === 'cancel') return abort.abort();
+    if (req.type === 'cancel') {
+      abort.abort();
+      return post({ type: 'cancelled' });
+    }
     const run = req.type === 'send' ? runSend(req, post, abort.signal) : runReceive(req, post, abort.signal);
     run.catch((e: Error) => abort.signal.aborted || post({ type: 'error', message: e.message }));
   });

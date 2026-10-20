@@ -32,7 +32,10 @@ export async function runLive(
   return (cancel = false) => {
     if (!connected) return;
     connected = false;
-    if (cancel) port.postMessage({ type: 'cancel' } satisfies LiveRequest);
-    port.disconnect();
+    port.onMessage.removeListener(onMessage);
+    if (!cancel) return port.disconnect();
+    // Disconnect only once the offscreen document confirms, so the cancel cannot be lost.
+    port.onMessage.addListener((m: LiveResponse) => m.type === 'cancelled' && port.disconnect());
+    port.postMessage({ type: 'cancel' } satisfies LiveRequest);
   };
 }

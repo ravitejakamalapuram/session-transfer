@@ -83,4 +83,5 @@ export type LiveResponse =
   | { type: 'sent' }
   | { type: 'received'; packageText: string }
   | { type: 'timeout' }
+  | { type: 'cancelled' }
   | { type: 'error'; message: string };
