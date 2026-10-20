@@ -277,7 +277,7 @@ export default function App() {
     const update = (m: LiveResponse) => {
       if (attempt === liveAttempt.current) setLiveSend((s) => s && { ...s, ...liveSendUpdate(m) });
     };
-    runLive({ type: 'send', roomId, secret, packageText: text }, update)
+    runLive({ type: 'send', roomId, secret, packageText: text }, update, () => attempt === liveAttempt.current)
       .then((stop) => (attempt === liveAttempt.current ? (cleanup.current = stop) : stop()))
       .catch((e: Error) => update({ type: 'error', message: e.message }));
   };
@@ -303,7 +303,7 @@ export default function App() {
         inspectWith(m.packageText, parsed.secret);
       } else if (m.type === 'timeout') fail(LIVE_TIMEOUT_MESSAGE);
       else if (m.type === 'error') fail(m.message);
-    })
+    }, () => attempt === liveAttempt.current)
       .then((stop) => (attempt === liveAttempt.current ? (cleanup.current = stop) : stop()))
       .catch((e: Error) => fail(e.message));
   };
@@ -559,6 +559,7 @@ export default function App() {
             state={liveSend}
             onCopy={() => navigator.clipboard.writeText(liveSend.code).then(() => setLiveSend((s) => s && { ...s, copied: true }), () => undefined)}
             onFallback={() => {
+              endLive();
               cleanup.current?.();
               setView('ready');
             }}

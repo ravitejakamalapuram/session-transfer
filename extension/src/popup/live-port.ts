@@ -13,9 +13,17 @@ async function ensureOffscreen(): Promise<void> {
   });
 }
 
-/** Starts a live send or receive in the offscreen document. Returns a disconnect function. */
-export async function runLive(request: LiveRequest, onMessage: (msg: LiveResponse) => void): Promise<() => void> {
+/**
+ * Starts a live send or receive in the offscreen document. Returns a disconnect function.
+ * `shouldStart` is checked after the offscreen document is ready, so a cancelled attempt never connects.
+ */
+export async function runLive(
+  request: LiveRequest,
+  onMessage: (msg: LiveResponse) => void,
+  shouldStart: () => boolean = () => true,
+): Promise<() => void> {
   await ensureOffscreen();
+  if (!shouldStart()) return () => undefined;
   const port = chrome.runtime.connect({ name: LIVE_PORT_NAME });
   port.onMessage.addListener(onMessage);
   port.postMessage(request);
