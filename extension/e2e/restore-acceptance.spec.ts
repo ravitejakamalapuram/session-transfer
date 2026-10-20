@@ -155,8 +155,10 @@ test('E. a circular IndexedDB record no longer aborts the capture; all databases
   await receive(r.popup, text);
   await importWith(r.popup, 'replace');
   await expect(r.popup.getByTestId('verify-indexedDB')).toContainText('2 / 2'); // fixture + cyclic
-  const names = await r.site.evaluate(async () => (await indexedDB.databases()).map((d) => d.name).sort());
-  expect(names).toEqual(['cyclic', 'fixture']);
+  // indexedDB.databases() can lag behind a just-finished restore, so poll it.
+  await expect
+    .poll(() => r.site.evaluate(async () => (await indexedDB.databases()).map((d) => d.name).sort()))
+    .toEqual(['cyclic', 'fixture']);
 });
 
 test('F. a Secure cookie on a localhost origin is restored', async ({ h, b }) => {

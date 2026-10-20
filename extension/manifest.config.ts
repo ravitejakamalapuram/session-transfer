@@ -6,6 +6,7 @@ import pkg from './package.json' with { type: 'json' };
 //   scripting    -> inject on-demand collector/restorer functions into the active tab to read/write
 //                   localStorage, sessionStorage, IndexedDB and Cache Storage (origin-scoped, page context).
 //   (tabs        -> not requested: the http/https host permissions already expose each tab's URL and title.)
+//   offscreen    -> live transfer beta: a hidden page holds the WebRTC connection (no install warning).
 //   storage      -> persist the on-device setting and the short-lived ready result.
 //   host_permissions http/https -> the product must read & restore storage/cookies for ANY origin the
 //                   user chooses; a fixed host list is impossible. No cross-origin data is ever mixed
@@ -25,7 +26,7 @@ export default defineManifest({
     service_worker: 'src/background/service-worker.ts',
     type: 'module',
   },
-  permissions: ['cookies', 'scripting', 'storage'],
+  permissions: ['cookies', 'offscreen', 'scripting', 'storage'],
   host_permissions: ['http://*/*', 'https://*/*'],
   icons: {
     16: 'icons/icon16.png',

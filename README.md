@@ -11,8 +11,9 @@ from one Chrome profile, browser or device to another.
   (PBKDF2-SHA256, 600,000 iterations). The setting **Skip the code (same
   computer only)** makes a plain package instead: anyone who sees it can use
   the login, so treat it like a password.
-- **Fully local** — no server, no account, no telemetry. Packages are only
-  accepted by the extension for 5 minutes.
+- **Local by default** — no account, no telemetry, and no server unless you use
+  the live transfer beta, whose signalling server never sees the session.
+  Packages are only accepted by the extension for 5 minutes.
 - **Origin-bound** — a package can only be restored into its own website origin.
 - **Honest** about what cannot be transferred (WebAuthn/passkeys, hardware credentials, TLS state).
 
@@ -28,6 +29,9 @@ from one Chrome profile, browser or device to another.
   `storageState` file, so a test can start already logged in:
   `browser.newContext({ storageState: 'storageState-example.com.json' })`. sessionStorage and IndexedDB are not
   part of that format, and partitioned cookies are left out. The file holds live logins: treat it like a password.
+- **Send to another computer (beta).** Sends the encrypted package straight to the other browser over WebRTC,
+  after a signalling server pairs the two (it sees IP addresses and connection details, never the package or
+  code; see [PRIVACY.md](PRIVACY.md)). Some corporate networks block it; then use copy or file with the same code.
 - **Cookies from other sites.** If the site signs you in through another host (for example `accounts.example.com`),
   type its host name (up to 5) and those cookies are added to the transfer. Nothing is added unless you type it.
 

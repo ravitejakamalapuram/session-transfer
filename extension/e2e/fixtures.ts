@@ -21,6 +21,7 @@ async function launch(fixture: Fixture): Promise<{ h: Harness; dispose(): Promis
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'st-e2e-'));
   const context = await chromium.launchPersistentContext(dir, {
     channel: 'chromium',
+    executablePath: process.env.E2E_CHROMIUM_PATH, // local runs whose Playwright browsers differ
     headless: true,
     args: [`--disable-extensions-except=${EXT}`, `--load-extension=${EXT}`],
   });

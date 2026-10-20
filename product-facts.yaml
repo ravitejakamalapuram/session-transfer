@@ -57,11 +57,11 @@ facts:
     code: ["extension/src/core/crypto.ts (headerAad: origin in AAD; decryptPayload: payload origin must equal package origin)", "extension/src/background/service-worker.ts (handleRestore: originMismatch confirmation; resolveDestinationTab(origin))"]
 
   local_only:
-    claim: "No server, no account, no analytics, no tracking. The extension makes no network requests."
-    status: safe
+    claim: "No servers unless you use the live transfer beta, no account, no analytics, no tracking. Copy and file transfer make no network requests."
+    status: narrow
     sources: ["README.md:13-14", "PRIVACY.md:30-33", "CHROMEWEBSTORE.md:34,76"]
-    code: ["extension/package.json (dependencies: react, react-dom only)", "grep over extension/src at the pinned sha: no fetch( / XMLHttpRequest / WebSocket / sendBeacon / analytics SDK"]
-    note: "Fully local describes the extension. The user saves the package as a file (.stpkg) and moves it; what happens to that file afterwards is outside the extension. Use the policy wording, not 'never leaves your device'."
+    code: ["extension/package.json (dependencies: react, react-dom only)", "extension/src/core/signal-client.ts: the only fetch(, used only by live transfer (beta) to exchange SDP with the signalling Worker", "copy and file transfer: no fetch( / XMLHttpRequest / WebSocket / sendBeacon / analytics SDK in their code paths"]
+    note: "Fully local describes the extension. The user saves the package as a file (.stpkg) and moves it; what happens to that file afterwards is outside the extension. Use the policy wording, not 'never leaves your device'. The live transfer beta (build PR open) contacts a signalling Worker that sees IPs, user agents and SDP, never the package or code; re-check the code evidence once it merges."
 
   no_data_collected_by_developer:
     claim: "No session data is collected, received or logged by the developer."
@@ -144,7 +144,7 @@ do_not_claim:
   - claim: "One-time transfer code / the code is always required"
     why: "The user can skip the code; see transfer_code."
   - claim: "Never leaves your device / zero-knowledge / unhackable / military-grade"
-    why: "The user exports a file and carries it; the policy only says the extension contacts no servers."
+    why: "The user exports a file and carries it; the policy only says copy and file transfer contact no servers."
   - claim: "Works on every site / keeps you logged in everywhere"
     why: "Passkeys, hardware, TLS-bound state and device-bound sessions are not moved."
   - claim: "Counts: users, installs, ratings, speed, 'in seconds'"

@@ -109,6 +109,7 @@ export function Ready({
   onGoBack,
   onLeave,
   onExpired,
+  note,
 }: {
   collected: Collected;
   saved: Saved;
@@ -124,6 +125,8 @@ export function Ready({
   onGoBack: () => void;
   onLeave: () => void;
   onExpired: () => void;
+  /** Shown above the actions, e.g. why live transfer fell back to the file. */
+  note?: string;
 }) {
   const [now, setNow] = useState(() => Date.now());
   const remaining = collected.pkg.expiresAt - now;
@@ -150,6 +153,11 @@ export function Ready({
         <div className="hint">{hostOf(collected.pkg.origin)} · {formatBytes(collected.sizeBytes)}</div>
       </div>
 
+      {note && (
+        <div className="callout info" data-testid="ready-note">
+          {note}
+        </div>
+      )}
       {warning && (
         <div className="callout warn" data-testid="collect-warning">
           {warning}
