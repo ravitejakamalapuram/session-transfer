@@ -18,7 +18,9 @@ user-selected website between browser environments.
 ## Data collection and usage
 
 - **User-initiated only.** Data is read only for the site the user selects,
-  and only when the user presses Transfer or Receive in the popup.
+  plus cookies for up to 5 extra sign-in sites the user lists under "Also
+  include cookies from other sites", and only when the user presses Transfer
+  or Receive in the popup.
 - **Local, encrypted by default.** Captured state is built on the device and
   saved by the user as a file or copied as text. By default it is encrypted
   with AES-256-GCM, with a key derived with PBKDF2-SHA256 from a transfer code
@@ -69,7 +71,8 @@ signalling server the developer runs on Cloudflare Workers.
 - `storage` — hold the on-device "Skip the code" setting and
   the short-lived "ready" result while the popup is closed.
 - Host access — sessions can be transferred for any site the user is logged
-  into; access is on demand and limited to the selected origin.
+  into; access is on demand and limited to the selected origin and any extra
+  sign-in sites the user lists.
 
 ## Contact
 
