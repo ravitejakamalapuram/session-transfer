@@ -19,8 +19,8 @@ user-selected website between browser environments.
 
 - **User-initiated only.** Data is read only for the site the user selects,
   plus cookies for up to 5 extra sign-in sites the user lists under "Also
-  include cookies from other sites", and only when the user presses Transfer
-  or Receive in the popup.
+  include cookies from other sites", and only when the user presses Transfer,
+  Receive or "Export for Playwright" in the popup.
 - **Local, encrypted by default.** Captured state is built on the device and
   saved by the user as a file or copied as text. By default it is encrypted
   with AES-256-GCM, with a key derived with PBKDF2-SHA256 from a transfer code
