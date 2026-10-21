@@ -47,7 +47,7 @@ signalling server the developer runs on Cloudflare Workers.
   and answer of the two browsers (SDP, which holds their IP addresses, ports
   and DTLS fingerprints), each browser's IP address and user agent, and when
   the requests were made.
-- **What it keeps:** only the room, for at most 5 minutes; the room is deleted
+- **What it keeps:** the room, for at most 5 minutes; the room is deleted
   as soon as the answer is read. To limit abuse it also keeps a request
   counter per IP address for at most 10 minutes. Request logging is turned
   off in the Worker.
