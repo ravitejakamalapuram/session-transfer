@@ -70,9 +70,9 @@ signalling server the developer runs on Cloudflare Workers.
   selected tab for localStorage, sessionStorage, IndexedDB and Cache Storage.
 - `storage` — hold the on-device "Skip the code" setting and
   the short-lived "ready" result while the popup is closed.
-- Host access — sessions can be transferred for any site the user is logged
-  into; access is on demand and limited to the selected origin and any extra
-  sign-in sites the user lists.
+- Host access (all `http://` and `https://` sites) — declared so sessions can
+  be transferred for any site the user is logged into. Data is read only on
+  demand, for the selected origin and any extra sign-in sites the user lists.
 
 ## Contact
 
