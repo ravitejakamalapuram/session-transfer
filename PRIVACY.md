@@ -27,7 +27,8 @@ user-selected website between browser environments.
   (new for each export) that is not in the package. If the user turns on
   "Skip the code (same computer only)", the package is **not encrypted**:
   anyone with the text or file can restore the session, so treat it like a
-  password. The
+  password. "Export for Playwright" always saves a plain, unencrypted .json
+  file that holds live logins; protect it like a password too. The
   extension refuses to import a package more than 5 minutes after it was
   made; this is a check made by the extension, not a cryptographic limit. The
   extension does not keep backups of destination state.
