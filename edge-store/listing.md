@@ -34,10 +34,11 @@ means an Edge-specific manifest (a build flavor), which this repo does not have 
 **Single Purpose Description**
 > Session Transfer exports and imports the session state of a user-selected website (cookies and origin storage) so the user can continue a logged-in session in another browser profile or device. Packages are encrypted with a transfer code by default.
 
-**Permission justification** (Partner Center lists the manifest permissions: `cookies`, `scripting`,
-`storage`, and the `http://*/*` and `https://*/*` host access)
+**Permission justification** (Partner Center lists the manifest permissions: `cookies`, `offscreen`,
+`scripting`, `storage`, and the `http://*/*` and `https://*/*` host access)
 
 - **cookies**: Reading and restoring cookies (including HttpOnly/Secure) is the core mechanism for transferring authenticated sessions. Cookies are accessed only for the selected origin and for up to 5 host names the user adds under More options.
+- **offscreen**: Used only for the "Send to another computer" live transfer. Chrome extensions cannot hold a WebRTC connection in the service worker, so when the user starts a live send or receive from the popup, the extension opens a hidden offscreen document (reason WEB_RTC) that holds the peer-to-peer connection until the transfer finishes or is cancelled. It never runs on page load or in the background. No page content is read through it and no code is loaded remotely.
 - **scripting**: Used to run an on-demand, user-initiated collect/restore function in the active tab to read/write that origin's localStorage, sessionStorage, IndexedDB and Cache Storage. No code runs automatically on page load.
 - **storage**: Keeps the on-device setting and a short-lived ready result while the popup is closed. Never synced, never transmitted.
 - **Host permissions (http/https)**: The product's purpose is transferring sessions for any website the user is logged into, so a fixed host list is impossible. Access is on-demand (user clicks the toolbar action), page scripting is limited to the selected origin, cookie reads also cover up to 5 host names the user adds under More options, and restore targets the package's own origin: encrypted packages bind that origin as AEAD authenticated data, while plain ("Skip the code") packages have no tamper detection and rely on an extension-side origin check.
