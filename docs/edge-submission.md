@@ -21,7 +21,7 @@ Manual steps in Partner Center (Microsoft Edge program). All copy to paste is in
 2. [ ] **Availability**: Visibility **Public** (or **Hidden** for a link-only soft launch; flip later).
        Markets: leave **all markets**.
 3. [ ] **Properties**: category, website, support contact and mature content from the listing file.
-4. [ ] **Privacy**: single purpose, the four permission justifications, "No" to remote code,
+4. [ ] **Privacy**: single purpose, the five permission justifications, "No" to remote code,
        "Authentication information" as the only data-collection box, all certification boxes,
        privacy policy URL.
 5. [ ] **Store listings** → English (United States) → **Edit details**:
