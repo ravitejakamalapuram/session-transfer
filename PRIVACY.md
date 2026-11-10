@@ -18,14 +18,17 @@ user-selected website between browser environments.
 ## Data collection and usage
 
 - **User-initiated only.** Data is read only for the site the user selects,
-  and only when the user presses Transfer or Receive in the popup.
+  plus cookies for up to 5 extra sign-in sites the user lists under "Also
+  include cookies from other sites", and only when the user presses Transfer,
+  Receive or "Export for Playwright" in the popup.
 - **Local, encrypted by default.** Captured state is built on the device and
   saved by the user as a file or copied as text. By default it is encrypted
   with AES-256-GCM, with a key derived with PBKDF2-SHA256 from a transfer code
   (new for each export) that is not in the package. If the user turns on
   "Skip the code (same computer only)", the package is **not encrypted**:
   anyone with the text or file can restore the session, so treat it like a
-  password. The
+  password. "Export for Playwright" always saves a plain, unencrypted .json
+  file that holds live logins; protect it like a password too. The
   extension refuses to import a package more than 5 minutes after it was
   made; this is a check made by the extension, not a cryptographic limit. The
   extension does not keep backups of destination state.
@@ -45,8 +48,10 @@ signalling server the developer runs on Cloudflare Workers.
   and answer of the two browsers (SDP, which holds their IP addresses, ports
   and DTLS fingerprints), each browser's IP address and user agent, and when
   the requests were made.
-- **What it keeps:** only the room, for at most 5 minutes; the room is deleted
-  as soon as the answer is read. Request logging is turned off in the Worker.
+- **What it keeps:** the room, for at most 5 minutes; the room is deleted
+  as soon as the answer is read. To limit abuse it also keeps a request
+  counter per IP address for about 10 minutes (Cloudflare can run the
+  deletion up to a minute late). Request logging is turned off in the Worker.
 - **What it never sees:** the transfer code, the session package or any
   cookie. The package goes browser to browser over a WebRTC data channel,
   encrypted with AES-256-GCM under a key derived from the transfer code.
@@ -68,8 +73,9 @@ signalling server the developer runs on Cloudflare Workers.
   selected tab for localStorage, sessionStorage, IndexedDB and Cache Storage.
 - `storage` — hold the on-device "Skip the code" setting and
   the short-lived "ready" result while the popup is closed.
-- Host access — sessions can be transferred for any site the user is logged
-  into; access is on demand and limited to the selected origin.
+- Host access (all `http://` and `https://` sites) — declared so sessions can
+  be transferred for any site the user is logged into. Data is read only on
+  demand, for the selected origin and any extra sign-in sites the user lists.
 
 ## Contact
 

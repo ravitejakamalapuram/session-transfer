@@ -2,10 +2,10 @@
 // the live code's secret is never passed in, so it cannot end up in a request.
 
 /**
- * The deployed Worker. Empty until the owner runs the signal-deploy workflow and fills it in;
- * while empty, the popup hides "Send to another computer". e2e builds point it at a local server.
+ * The deployed Worker (signal-deploy workflow). Clearing it hides "Send to another computer".
+ * e2e builds point it at a local server.
  */
-export const SIGNAL_URL: string = import.meta.env?.VITE_SIGNAL_URL || '';
+export const SIGNAL_URL: string = import.meta.env?.VITE_SIGNAL_URL || 'https://session-transfer-signal.echokit-rk.workers.dev';
 
 export type Fetch = typeof fetch;
 
